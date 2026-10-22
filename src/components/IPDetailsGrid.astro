@@ -10,15 +10,24 @@ interface Props {
 const { details } = Astro.props;
 
 const coordinatesStr = formatCoordinates(details.latitude, details.longitude);
-const hasCoordinates = details.latitude !== undefined && details.longitude !== undefined;
+const hasCoordinates =
+  details.latitude !== undefined &&
+  details.longitude !== undefined &&
+  !isNaN(details.latitude) &&
+  !isNaN(details.longitude);
+
 const mapUrl = hasCoordinates
   ? `https://www.google.com/maps/search/?api=1&query=${details.latitude},${details.longitude}`
+  : undefined;
+
+const osmEmbedUrl = hasCoordinates
+  ? `https://www.openstreetmap.org/export/embed.html?bbox=${(details.longitude! - 0.08).toFixed(4)}%2C${(details.latitude! - 0.05).toFixed(4)}%2C${(details.longitude! + 0.08).toFixed(4)}%2C${(details.latitude! + 0.05).toFixed(4)}&layer=mapnik&marker=${details.latitude}%2C${details.longitude}`
   : undefined;
 ---
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-  <!-- Card 1: Geolocation Details -->
-  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
+  <!-- Card 1: Geolocation Details + Interactive Map -->
+  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm md:col-span-2">
     <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -27,65 +36,94 @@ const mapUrl = hasCoordinates
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
-        <h3 class="text-base font-bold text-neutral-900 dark:text-white">Geolocation & Coordinates</h3>
+        <div>
+          <h3 class="text-base font-bold text-neutral-900 dark:text-white">Geolocation & Visual Map</h3>
+          <p class="text-xs text-neutral-500">Regional BGP routing hub coordinates</p>
+        </div>
       </div>
       <span class="text-2xl" role="img" aria-label="Flag">{details.flagEmoji || '🌐'}</span>
     </div>
 
-    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
-      <div>
-        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Country</dt>
-        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-          {details.country || 'Unknown'} {details.countryCode ? `(${details.countryCode})` : ''}
-        </dd>
-      </div>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Data fields -->
+      <dl class="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5 text-sm">
+        <div>
+          <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Country</dt>
+          <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+            {details.country || 'Unknown'} {details.countryCode ? `(${details.countryCode})` : ''}
+          </dd>
+        </div>
 
-      <div>
-        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Region / State</dt>
-        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-          {details.region || 'Unknown'}
-        </dd>
-      </div>
+        <div>
+          <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Region / State</dt>
+          <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+            {details.region || 'Unknown'}
+          </dd>
+        </div>
 
-      <div>
-        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">City</dt>
-        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-          {details.city || 'Unknown'}
-        </dd>
-      </div>
+        <div>
+          <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">City</dt>
+          <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+            {details.city || 'Unknown'}
+          </dd>
+        </div>
 
-      <div>
-        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Postal / ZIP Code</dt>
-        <dd class="font-mono font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-          {details.postalCode || 'Not reported'}
-        </dd>
-      </div>
+        <div>
+          <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Postal / ZIP Code</dt>
+          <dd class="font-mono font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+            {details.postalCode || 'Not reported'}
+          </dd>
+        </div>
 
-      <div class="sm:col-span-2">
-        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">GPS Coordinates</dt>
-        <dd class="flex items-center justify-between gap-2 mt-0.5">
-          <span class="font-mono text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-            {coordinatesStr}
-          </span>
-          {mapUrl && (
-            <a
-              href={mapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              <span>View Map</span>
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          )}
-        </dd>
+        <div class="sm:col-span-2">
+          <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">GPS Coordinates</dt>
+          <dd class="flex items-center justify-between gap-2 mt-0.5">
+            <span class="font-mono text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+              {coordinatesStr}
+            </span>
+            {mapUrl && (
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <span>Google Maps</span>
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      <!-- Embedded Privacy-Friendly OpenStreetMap -->
+      <div class="lg:col-span-7 flex flex-col gap-2">
+        {hasCoordinates && osmEmbedUrl ? (
+          <div class="relative w-full h-56 sm:h-64 rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-800 shadow-inner bg-neutral-100 dark:bg-neutral-800">
+            <iframe
+              width="100%"
+              height="100%"
+              loading="lazy"
+              title={`Map coordinates for ${details.ip}`}
+              src={osmEmbedUrl}
+              class="w-full h-full border-0 filter dark:invert-[90%] dark:hue-rotate-180"
+            ></iframe>
+          </div>
+        ) : (
+          <div class="w-full h-40 rounded-2xl border border-dashed border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/40 flex flex-col items-center justify-center p-4 text-center">
+            <svg class="w-6 h-6 text-neutral-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            <span class="text-xs text-neutral-500 font-medium">Map preview unavailable for private/non-routable subnet</span>
+          </div>
+        )}
       </div>
-    </dl>
+    </div>
   </div>
 
-  <!-- Card 2: Routing, ASN & ISP -->
+  <!-- Card 2: Routing, ASN & Reverse DNS -->
   <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
     <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
       <div class="flex items-center gap-2.5">
@@ -119,10 +157,10 @@ const mapUrl = hasCoordinates
       </div>
 
       <div class="sm:col-span-2">
-        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Reverse DNS / Hostname</dt>
-        <dd class="flex items-center justify-between gap-2 mt-0.5">
-          <span class="font-mono text-xs text-neutral-700 dark:text-neutral-300 truncate">
-            {details.hostname || 'No reverse DNS record'}
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Authoritative Reverse DNS (PTR)</dt>
+        <dd class="flex items-center justify-between gap-2 mt-0.5 p-2 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-100 dark:border-neutral-800">
+          <span class="font-mono text-xs text-neutral-800 dark:text-neutral-200 truncate">
+            {details.hostname || 'No PTR record registered'}
           </span>
           {details.hostname && (
             <CopyButton text={details.hostname} label="" showIconOnly={true} className="p-1 rounded text-neutral-400 hover:text-neutral-700" />
@@ -178,39 +216,13 @@ const mapUrl = hasCoordinates
           {details.tlsVersion || 'TLS 1.3'}
         </dd>
       </div>
-    </dl>
-  </div>
 
-  <!-- Card 4: Device & User Agent -->
-  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
-    <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <h3 class="text-base font-bold text-neutral-900 dark:text-white">Client Environment</h3>
-      </div>
-    </div>
-
-    <div class="flex flex-col gap-3 text-sm">
-      <div>
+      <div class="sm:col-span-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
         <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">User Agent</dt>
-        <dd class="mt-1 p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/60 dark:border-neutral-800 font-mono text-xs text-neutral-700 dark:text-neutral-300 break-all select-all">
+        <dd class="font-mono text-xs text-neutral-600 dark:text-neutral-400 truncate mt-0.5 select-all">
           {details.userAgent || 'Standard HTTP Client'}
         </dd>
       </div>
-
-      <div class="flex items-center justify-between pt-1 text-xs text-neutral-500 dark:text-neutral-400">
-        <span>Zero Storage / In-Memory Processing</span>
-        <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          Privacy Protected
-        </span>
-      </div>
-    </div>
+    </dl>
   </div>
 </div>

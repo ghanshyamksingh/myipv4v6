@@ -1,4 +1,6 @@
 ---
+export const prerender = true;
+
 import Layout from '../layouts/Layout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 
@@ -7,8 +9,8 @@ const breadcrumbItems = [
   { name: 'Privacy Policy', url: '/privacy' },
 ];
 
-const pageTitle = 'Privacy Policy: Zero IP Logging Guarantee | myipv4v6.com';
-const pageDescription = 'Our strict privacy commitment: myipv4v6.com does not record, store, sell, or track visitor IP addresses. In-memory edge execution only.';
+const pageTitle = 'Privacy Policy: Zero-Logging & Data Protection | myipv4v6.com';
+const pageDescription = 'Comprehensive Privacy Policy for myipv4v6.com. Explaining our strict zero-logging architecture, in-memory edge processing, and complete absence of user tracking.';
 ---
 
 <Layout
@@ -24,47 +26,83 @@ const pageDescription = 'Our strict privacy commitment: myipv4v6.com does not re
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
-        <span>Privacy-First Architecture</span>
+        <span>Architectural Privacy Commitment</span>
       </div>
-      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-neutral-950 dark:text-white">
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 dark:text-white">
         Privacy Policy
       </h1>
-      <p class="text-xs text-neutral-500">Last updated: October 2026</p>
+      <p class="text-sm text-neutral-500">Effective Date: October 2026 • Document Version 2.0</p>
     </div>
 
-    <div class="flex flex-col gap-6 text-neutral-700 dark:text-neutral-300 leading-relaxed text-sm sm:text-base">
-      <section class="flex flex-col gap-2">
-        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">1. Zero IP Storage Commitment</h2>
+    <div class="flex flex-col gap-8 text-neutral-700 dark:text-neutral-300 leading-relaxed text-sm sm:text-base">
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">1. Core Architectural Principle: Zero Logging</h2>
         <p>
-          At <strong>myipv4v6.com</strong>, your privacy is our core architectural priority. When you visit our website, your IP address is processed strictly in volatile RAM memory by Cloudflare edge workers to return the requested network diagnostics. <strong>We do not write, log, archive, or persist your IP address to any permanent database or disk storage.</strong>
+          At <strong>myipv4v6.com</strong>, we believe privacy is not merely a policy statement—it is an architectural design constraint. Unlike traditional lookup portals that monetize user data or compile historical tracking profiles, our platform operates on an uncompromising <strong>zero-logging</strong> standard.
+        </p>
+        <p>
+          When you connect to our service, your public IP address is transmitted in standard TCP/IP packet headers. This IP address is processed strictly in <strong>volatile RAM memory</strong> at the Cloudflare edge worker node nearest to you to render your response HTML or JSON. Upon completion of that HTTP transmission, your IP address is immediately discarded from memory.
+        </p>
+        <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm">
+          <strong>Key Guarantee:</strong> We do not log, persist, archive, analyze, or write your personal IP address to any database, file system, disk storage, or search history repository.
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">2. No Tracking Cookies, Beacons, or Fingerprinting</h2>
+        <p>
+          We do not use:
+        </p>
+        <ul class="list-disc pl-5 space-y-1.5 text-sm">
+          <li>Tracking cookies, advertising identifiers, or session tokens.</li>
+          <li>Cross-site tracking scripts, Google Analytics trackers, or Facebook/Meta pixels.</li>
+          <li>Browser canvas fingerprinting, WebGL auditing, or device identification heuristics.</li>
+        </ul>
+        <p>
+          The only client-side storage we utilize is a single key in your browser's local <code>localStorage</code> (<code>theme = 'dark' | 'light'</code>), which records your visual preference so your screen does not flicker when navigating pages. This value remains entirely on your device and is never sent to our servers.
         </p>
       </section>
 
-      <section class="flex flex-col gap-2">
-        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">2. No Tracking Cookies & No Fingerprinting</h2>
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">3. How Search Queries & IP Lookups Are Handled</h2>
         <p>
-          We do not use tracking cookies, browser fingerprinting, cross-site trackers, or third-party advertising tracking pixels. We store only your local theme preference (Light or Dark mode) directly in your browser's <code>localStorage</code>, which remains entirely on your own device and is never transmitted to any external server.
+          When you enter an IP address or domain name into our lookup form:
+        </p>
+        <ul class="list-disc pl-5 space-y-1.5 text-sm">
+          <li><strong>Server-Side Proxying:</strong> The query is executed by our edge server. The destination network registry or upstream geolocation database never sees your personal IP address.</li>
+          <li><strong>24-Hour Public Data Caching:</strong> Public network intelligence (e.g., ASN, country, city, ISP name) for queried addresses is cached in Cloudflare Key-Value (KV) storage for 24 hours to maximize response speed and eliminate redundant API calls. <em>No association between the queried IP address and the person or device searching it is ever recorded or stored.</em></li>
+        </ul>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">4. Cloudflare Global Edge Infrastructure</h2>
+        <p>
+          myipv4v6.com is deployed across Cloudflare's global edge network. Cloudflare operates as a reverse proxy to protect against Distributed Denial of Service (DDoS) attacks, provide TLS/SSL cryptographic handshakes, and optimize edge packet routing. Cloudflare processes ephemeral network metadata in accordance with its strict data privacy obligations under GDPR and standard contractual clauses.
         </p>
       </section>
 
-      <section class="flex flex-col gap-2">
-        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">3. Third-Party Geolocation Providers</h2>
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">5. Abuse Prevention & Rate Limiting</h2>
         <p>
-          When you perform an explicit lookup on a third-party IP address, our server-side edge function queries reputable geolocation databases (such as Cloudflare Geolocation, ip-api, or ipinfo). These lookups are performed by our backend server, which prevents your own personal IP address from being revealed to the external provider.
+          To safeguard service availability from denial-of-service attempts and malicious scrapers, we implement short-lived rate-limiting counters. These counters are stored in ephemeral memory cache with an automatic 60-second expiration window and are continuously flushed.
         </p>
       </section>
 
-      <section class="flex flex-col gap-2">
-        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">4. Rate Limiting & Anti-Abuse</h2>
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">6. Compliance with International Privacy Laws (GDPR & CCPA)</h2>
         <p>
-          To ensure service reliability, we enforce temporary sliding-window rate limiting. Rate counters are kept in ephemeral cache with a 60-second expiration and are automatically purged.
+          Because we do not store, process, or sell personal identifiers or persistent browsing histories:
         </p>
+        <ul class="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>GDPR (European Union):</strong> We adhere to the Data Minimization principle (Article 5(1)(c)). No user tracking consent banner is required because no non-essential cookies or personal tracking data are collected.</li>
+          <li><strong>CCPA / CPRA (California):</strong> We do not sell or share personal information under any circumstance.</li>
+        </ul>
       </section>
 
-      <section class="flex flex-col gap-2">
-        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">5. Contact Information</h2>
-        <p>
-          If you have questions regarding this privacy policy, please reach out to us at <code>privacy@myipv4v6.com</code>.
+      <section class="flex flex-col gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+        <h2 class="text-lg font-bold text-neutral-900 dark:text-white">7. Privacy Inquiries</h2>
+        <p class="text-sm">
+          For technical questions or audit inquiries regarding our zero-logging architecture, please contact our team at <code>privacy@myipv4v6.com</code>.
         </p>
       </section>
     </div>

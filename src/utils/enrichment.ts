@@ -2,12 +2,17 @@ import type { CloudflareGeoData, IPDetails, LookupProviderConfig } from '../type
 import type { CloudflareKVNamespace } from '../env';
 import { cleanIP, getIPVersion, isPrivateIP, isValidIP } from './ip';
 import { countryCodeToEmoji, getLocalTime } from './geo';
+import { resolveReverseDNS } from './dns';
 
 const memoryCache = new Map<string, { data: IPDetails; expiresAt: number }>();
 
+export interface ExtendedProviderConfig extends LookupProviderConfig {
+  ipApiKey?: string;
+}
+
 /**
- * Enriches an IP address with geolocation, ASN, ISP, and network data.
- * Caches results in Cloudflare KV (24 hours).
+ * Enriches an IP address with geolocation, ASN, ISP, reverse DNS, and network data.
+ * Pure HTTPS only. Caches results in Cloudflare KV (24 hours).
  */
 export async function enrichIP(
   rawIP: string,
@@ -15,7 +20,7 @@ export async function enrichIP(
     cfData?: CloudflareGeoData;
     isVisitor?: boolean;
     kv?: CloudflareKVNamespace;
-    providerConfig?: LookupProviderConfig;
+    providerConfig?: ExtendedProviderConfig;
     userAgent?: string;
     protocol?: string;
   }
@@ -41,6 +46,7 @@ export async function enrichIP(
       isp: 'Internal / Non-routable IP',
       org: 'Local Subnet',
       asn: 'N/A',
+      hostname: 'localhost',
       timezone: 'UTC',
       localTime: getLocalTime('UTC'),
       source: 'fallback',
@@ -71,7 +77,7 @@ export async function enrichIP(
         };
       }
     } catch {
-      // Ignore KV get error and continue
+      // Continue on cache miss
     }
   }
 
@@ -80,6 +86,9 @@ export async function enrichIP(
     const cf = options.cfData;
     const lat = typeof cf.latitude === 'string' ? parseFloat(cf.latitude) : cf.latitude;
     const lon = typeof cf.longitude === 'string' ? parseFloat(cf.longitude) : cf.longitude;
+
+    // Resolve reverse DNS via DoH concurrently
+    const rDnsPromise = resolveReverseDNS(ip);
 
     const details: IPDetails = {
       ip,
@@ -108,26 +117,40 @@ export async function enrichIP(
       cachedAt: now,
     };
 
+    details.hostname = await rDnsPromise;
+
     await saveToCache(cacheKey, details, options?.kv);
     return details;
   }
 
-  // 4. External Enrichment Provider
+  // 4. External Enrichment Provider (100% HTTPS)
   const provider = options?.providerConfig?.provider || 'ip-api';
   let details: IPDetails | null = null;
 
   try {
     if (provider === 'ipinfo') {
       details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
+    } else if (provider === 'ip-api' && options?.providerConfig?.ipApiKey) {
+      details = await fetchFromIpApiPro(ip, options.providerConfig.ipApiKey);
     } else {
-      details = await fetchFromIpApi(ip);
+      // Default to ipwhois (free, 100% HTTPS, reliable)
+      details = await fetchFromIpWhois(ip);
     }
-  } catch (err) {
-    // If primary provider failed, try fallback
+  } catch {
+    // If primary failed, try fallback
     try {
-      details = await fetchFromIpApi(ip);
+      details = await fetchFromIpWhois(ip);
     } catch {
       details = null;
+    }
+  }
+
+  // 5. Ensure Reverse DNS is resolved if missing
+  if (details && !details.hostname) {
+    try {
+      details.hostname = await resolveReverseDNS(ip);
+    } catch {
+      // Continue without reverse DNS
     }
   }
 
@@ -143,19 +166,65 @@ export async function enrichIP(
   return createEmptyDetails(ip, version, 'Network query failed');
 }
 
-async function fetchFromIpApi(ip: string): Promise<IPDetails | null> {
+/**
+ * Free HTTPS Provider: ipwho.is (Zero auth required, 100% SSL)
+ */
+async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+  try {
+    const res = await fetch(`https://ipwho.is/${ip}`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    if (!data.success) return null;
+
+    return {
+      ip: data.ip || ip,
+      version: getIPVersion(ip) || 'IPv4',
+      isPrivate: false,
+      country: data.country,
+      countryCode: data.country_code,
+      flagEmoji: data.flag?.emoji || countryCodeToEmoji(data.country_code),
+      region: data.region,
+      regionCode: data.region_code,
+      city: data.city,
+      postalCode: data.postal,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      timezone: data.timezone?.id,
+      asn: data.connection?.asn ? `AS${data.connection.asn}` : undefined,
+      asOrganization: data.connection?.org,
+      isp: data.connection?.isp || data.connection?.org,
+      org: data.connection?.org,
+      hostname: data.connection?.domain,
+      source: 'ip-api',
+      cachedAt: Date.now(),
+    };
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
+}
+
+/**
+ * Pro HTTPS Provider: pro.ip-api.com
+ */
+async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3500);
 
   try {
     const res = await fetch(
-      `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,reverse,query`,
+      `https://pro.ip-api.com/json/${ip}?key=${encodeURIComponent(key)}&fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,reverse,query`,
       { signal: controller.signal }
     );
     clearTimeout(timeoutId);
 
     if (!res.ok) return null;
-    const data = await res.json();
+    const data: any = await res.json();
     if (data.status !== 'success') return null;
 
     return {
@@ -186,6 +255,9 @@ async function fetchFromIpApi(ip: string): Promise<IPDetails | null> {
   }
 }
 
+/**
+ * HTTPS Provider: ipinfo.io
+ */
 async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -200,7 +272,7 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
     clearTimeout(timeoutId);
 
     if (!res.ok) return null;
-    const data = await res.json();
+    const data: any = await res.json();
 
     const [latStr, lonStr] = (data.loc || '').split(',');
     const lat = latStr ? parseFloat(latStr) : undefined;
@@ -238,10 +310,9 @@ async function saveToCache(key: string, details: IPDetails, kv?: CloudflareKVNam
 
   if (kv) {
     try {
-      // 24 hour KV expiration (86400 seconds)
       await kv.put(key, JSON.stringify(details), { expirationTtl: 86400 });
     } catch {
-      // Silently continue if KV put fails
+      // Continue on KV write error
     }
   }
 }

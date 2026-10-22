@@ -9,6 +9,7 @@ import react from '@astrojs/react';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://myipv4v6.com',
+  output: 'server',
 
   vite: {
     plugins: [tailwindcss()],
@@ -21,7 +22,7 @@ export default defineConfig({
       filter: (page) => !page.includes('/api/') && !page.includes('/studio'),
     }),
     sanity({
-      projectId: process.env.PUBLIC_SANITY_PROJECT_ID || 'avfq9cch',
+      projectId: process.env.PUBLIC_SANITY_PROJECT_ID || 'your-project-id',
       dataset: process.env.PUBLIC_SANITY_DATASET || 'production',
       useCdn: false,
       apiVersion: '2025-10-01',

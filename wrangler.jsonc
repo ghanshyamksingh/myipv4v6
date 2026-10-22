@@ -1,9 +1,7 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"compatibility_date": "2026-10-12",
-	"compatibility_flags": [
-		"global_fetch_strictly_public"
-	],
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"name": "myipv4v6",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
@@ -13,8 +11,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "IP_CACHE",
-			"id": "167b4a4e50a645b5866d967541dd12ec",
-			"remote": true
+			"id": "myipv4v6_ip_cache"
 		}
 	],
 	"observability": {
