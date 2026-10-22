@@ -1,23 +1,48 @@
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body>
-		<slot />
-	</body>
-</html>
+---
+import SEOHead from '../components/SEOHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
 
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>
+interface Props {
+  title?: string;
+  description?: string;
+  canonicalUrl?: string;
+  ogImage?: string;
+  noIndex?: boolean;
+  schema?: Record<string, any> | Array<Record<string, any>>;
+  type?: 'website' | 'article';
+}
+
+const {
+  title,
+  description,
+  canonicalUrl,
+  ogImage,
+  noIndex,
+  schema,
+  type,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth antialiased">
+  <head>
+    <SEOHead
+      title={title}
+      description={description}
+      canonicalUrl={canonicalUrl}
+      ogImage={ogImage}
+      noIndex={noIndex}
+      schema={schema}
+      type={type}
+    />
+  </head>
+  <body class="min-h-screen flex flex-col bg-neutral-50/70 text-neutral-900 dark:bg-[#0a0a0c] dark:text-neutral-100 font-sans transition-colors duration-150">
+    <Header />
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

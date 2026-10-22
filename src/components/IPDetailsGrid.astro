@@ -1,0 +1,216 @@
+---
+import type { IPDetails } from '../types/ip';
+import CopyButton from './CopyButton.astro';
+import { formatCoordinates } from '../utils/geo';
+
+interface Props {
+  details: IPDetails;
+}
+
+const { details } = Astro.props;
+
+const coordinatesStr = formatCoordinates(details.latitude, details.longitude);
+const hasCoordinates = details.latitude !== undefined && details.longitude !== undefined;
+const mapUrl = hasCoordinates
+  ? `https://www.google.com/maps/search/?api=1&query=${details.latitude},${details.longitude}`
+  : undefined;
+---
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+  <!-- Card 1: Geolocation Details -->
+  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
+    <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white">Geolocation & Coordinates</h3>
+      </div>
+      <span class="text-2xl" role="img" aria-label="Flag">{details.flagEmoji || '🌐'}</span>
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Country</dt>
+        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.country || 'Unknown'} {details.countryCode ? `(${details.countryCode})` : ''}
+        </dd>
+      </div>
+
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Region / State</dt>
+        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.region || 'Unknown'}
+        </dd>
+      </div>
+
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">City</dt>
+        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.city || 'Unknown'}
+        </dd>
+      </div>
+
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Postal / ZIP Code</dt>
+        <dd class="font-mono font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.postalCode || 'Not reported'}
+        </dd>
+      </div>
+
+      <div class="sm:col-span-2">
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">GPS Coordinates</dt>
+        <dd class="flex items-center justify-between gap-2 mt-0.5">
+          <span class="font-mono text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+            {coordinatesStr}
+          </span>
+          {mapUrl && (
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              <span>View Map</span>
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          )}
+        </dd>
+      </div>
+    </dl>
+  </div>
+
+  <!-- Card 2: Routing, ASN & ISP -->
+  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
+    <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white">ISP & Routing (BGP)</h3>
+      </div>
+      {details.asn && (
+        <span class="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+          {details.asn}
+        </span>
+      )}
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      <div class="sm:col-span-2">
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Internet Service Provider (ISP)</dt>
+        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5 truncate">
+          {details.isp || 'Unknown ISP'}
+        </dd>
+      </div>
+
+      <div class="sm:col-span-2">
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Autonomous System Organization</dt>
+        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5 truncate">
+          {details.asOrganization || details.org || 'Not reported'}
+        </dd>
+      </div>
+
+      <div class="sm:col-span-2">
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Reverse DNS / Hostname</dt>
+        <dd class="flex items-center justify-between gap-2 mt-0.5">
+          <span class="font-mono text-xs text-neutral-700 dark:text-neutral-300 truncate">
+            {details.hostname || 'No reverse DNS record'}
+          </span>
+          {details.hostname && (
+            <CopyButton text={details.hostname} label="" showIconOnly={true} className="p-1 rounded text-neutral-400 hover:text-neutral-700" />
+          )}
+        </dd>
+      </div>
+    </dl>
+  </div>
+
+  <!-- Card 3: Network, Time & Edge Node -->
+  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
+    <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white">Time & Edge Connection</h3>
+      </div>
+      {details.colo && (
+        <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+          Colo: {details.colo}
+        </span>
+      )}
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Timezone</dt>
+        <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5 truncate">
+          {details.timezone || 'UTC'}
+        </dd>
+      </div>
+
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Local Time</dt>
+        <dd class="font-mono text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.localTime || 'Unavailable'}
+        </dd>
+      </div>
+
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">HTTP Protocol</dt>
+        <dd class="font-mono text-xs font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.httpProtocol || 'HTTP/2'}
+        </dd>
+      </div>
+
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">TLS Security</dt>
+        <dd class="font-mono text-xs font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
+          {details.tlsVersion || 'TLS 1.3'}
+        </dd>
+      </div>
+    </dl>
+  </div>
+
+  <!-- Card 4: Device & User Agent -->
+  <div class="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 flex flex-col gap-4 shadow-sm">
+    <div class="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white">Client Environment</h3>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3 text-sm">
+      <div>
+        <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">User Agent</dt>
+        <dd class="mt-1 p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/60 dark:border-neutral-800 font-mono text-xs text-neutral-700 dark:text-neutral-300 break-all select-all">
+          {details.userAgent || 'Standard HTTP Client'}
+        </dd>
+      </div>
+
+      <div class="flex items-center justify-between pt-1 text-xs text-neutral-500 dark:text-neutral-400">
+        <span>Zero Storage / In-Memory Processing</span>
+        <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          Privacy Protected
+        </span>
+      </div>
+    </div>
+  </div>
+</div>

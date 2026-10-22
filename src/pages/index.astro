@@ -1,11 +1,154 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+export const prerender = false;
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import Layout from '../layouts/Layout.astro';
+import IPCard from '../components/IPCard.astro';
+import IPDetailsGrid from '../components/IPDetailsGrid.astro';
+import LookupForm from '../components/LookupForm.astro';
+import NetworkTools from '../components/NetworkTools.astro';
+import FAQAccordion from '../components/FAQAccordion.astro';
+import { getClientIP } from '../utils/ip';
+import { enrichIP } from '../utils/enrichment';
+import { getFAQs } from '../utils/sanity';
+import { generateWebApplicationSchema } from '../utils/seo';
+import { getCloudflareEnv, getCloudflareGeo } from '../utils/cloudflare';
+
+// 1. Detect visitor client IP & Cloudflare edge metadata safely
+const clientIP = getClientIP(Astro.request);
+const cfData = getCloudflareGeo(Astro.request);
+const cfEnv = await getCloudflareEnv();
+const kv = cfEnv.IP_CACHE;
+const userAgent = Astro.request.headers.get('user-agent') || undefined;
+const protocol = Astro.request.headers.get('x-forwarded-proto') || 'https';
+
+// 2. Enrich IP details
+const details = await enrichIP(clientIP, {
+  cfData,
+  isVisitor: true,
+  kv,
+  userAgent,
+  protocol,
+});
+
+// 3. Content & FAQs
+const faqs = await getFAQs();
+
+// 4. Structured data
+const webAppSchema = generateWebApplicationSchema('https://myipv4v6.com');
+
+const pageTitle = `What is My IP? - ${details.ip} | myipv4v6.com`;
+const pageDescription = `Your public IP is ${details.ip} (${details.version}), located in ${details.city || details.country || 'your region'} via ${details.isp || details.asOrganization || 'your provider'}. Fast, edge-first IP diagnostics.`;
 ---
 
-<Layout>
-	<Welcome />
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com"
+  schema={webAppSchema}
+>
+  <div class="flex flex-col gap-10 sm:gap-14">
+    <!-- Hero Header -->
+    <div class="flex flex-col items-center text-center max-w-3xl mx-auto gap-3 pt-2 sm:pt-4">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800">
+        <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+        <span>Instant Cloudflare Edge Detection</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-neutral-950 dark:text-white">
+        What is My IP Address?
+      </h1>
+
+      <p class="text-base sm:text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl leading-relaxed">
+        Instantly identify your public <span class="font-semibold text-neutral-900 dark:text-neutral-200">IPv4</span> or <span class="font-semibold text-neutral-900 dark:text-neutral-200">IPv6</span> address, network geolocation, ISP, and autonomous routing details.
+      </p>
+    </div>
+
+    <!-- Main IP Card -->
+    <div class="max-w-4xl mx-auto w-full">
+      <IPCard details={details} isVisitor={true} />
+    </div>
+
+    <!-- Quick Search / Lookup Any IP Form -->
+    <div class="max-w-4xl mx-auto w-full">
+      <div class="rounded-3xl bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-8">
+        <div class="flex flex-col gap-1.5 mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white">
+            Lookup Any IP Address
+          </h2>
+          <p class="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            Search any public IPv4 or IPv6 address to discover its ISP, location, and ASN routing record.
+          </p>
+        </div>
+        <LookupForm />
+      </div>
+    </div>
+
+    <!-- Rich Technical Details Grid -->
+    <div class="max-w-4xl mx-auto w-full flex flex-col gap-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+          Full Network Intelligence
+        </h2>
+        <span class="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
+          {details.version} • {details.countryCode || 'GLOBAL'}
+        </span>
+      </div>
+
+      <IPDetailsGrid details={details} />
+    </div>
+
+    <!-- Network Diagnostic Commands -->
+    <div class="max-w-4xl mx-auto w-full">
+      <NetworkTools ip={details.ip} />
+    </div>
+
+    <!-- SEO Educational Guide Section -->
+    <article class="max-w-4xl mx-auto w-full pt-8 border-t border-neutral-200/80 dark:border-neutral-800/80 flex flex-col gap-8">
+      <div class="flex flex-col gap-3">
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
+          Understanding Your Public IP Address
+        </h2>
+        <p class="text-base text-neutral-600 dark:text-neutral-300 leading-relaxed">
+          Every device communicating over the global internet is assigned an IP (Internet Protocol) address. Your public IP is provided by your Internet Service Provider (ISP) and acts as your device's return mailing address across the web.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="rounded-2xl p-5 bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 flex flex-col gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+            01
+          </div>
+          <h3 class="font-bold text-neutral-900 dark:text-white">IPv4 vs IPv6</h3>
+          <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            IPv4 addresses are 32-bit (e.g. 192.0.2.1), while IPv6 addresses are 128-bit (e.g. 2001:db8::1). As IPv4 addresses are exhausted, networks transition to dual-stack IPv6.
+          </p>
+        </div>
+
+        <div class="rounded-2xl p-5 bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 flex flex-col gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-sm">
+            02
+          </div>
+          <h3 class="font-bold text-neutral-900 dark:text-white">Geolocation & Privacy</h3>
+          <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            IP geolocation identifies approximate city and country via ISP routing nodes. It never exposes your physical street address or apartment number.
+          </p>
+        </div>
+
+        <div class="rounded-2xl p-5 bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 flex flex-col gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+            03
+          </div>
+          <h3 class="font-bold text-neutral-900 dark:text-white">Zero Tracking Commitment</h3>
+          <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            myipv4v6.com evaluates your request strictly at Cloudflare edge memory. We never store visitor IPs or build advertising profiles.
+          </p>
+        </div>
+      </div>
+    </article>
+
+    <!-- FAQ Accordion -->
+    <div class="max-w-4xl mx-auto w-full pt-4">
+      <FAQAccordion faqs={faqs} />
+    </div>
+  </div>
 </Layout>

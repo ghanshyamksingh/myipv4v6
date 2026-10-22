@@ -1,0 +1,96 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import FAQAccordion from '../components/FAQAccordion.astro';
+import LookupForm from '../components/LookupForm.astro';
+import { getFAQs } from '../utils/sanity';
+
+const faqs = await getFAQs();
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'What is My IP', url: '/what-is-my-ip' },
+];
+
+const pageTitle = 'What Is My IP Address? Complete Guide to Public & Private IPs | myipv4v6.com';
+const pageDescription = 'Learn what an IP address is, how public and private IPs work, how geolocation identifies your city, and how your privacy is protected online.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/what-is-my-ip"
+>
+  <div class="max-w-4xl mx-auto w-full flex flex-col gap-10">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- Page Header -->
+    <div class="flex flex-col gap-4 border-b border-neutral-200/80 dark:border-neutral-800 pb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 w-fit">
+        Network Fundamentals
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 dark:text-white">
+        What Is an IP Address?
+      </h1>
+      <p class="text-lg text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        An in-depth explanation of how IP addresses enable internet communication, the difference between public and private IPs, and what information your IP reveals.
+      </p>
+    </div>
+
+    <!-- Interactive Lookup Callout -->
+    <div class="rounded-3xl bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-8 flex flex-col gap-3">
+      <h2 class="text-lg font-bold text-neutral-900 dark:text-white">Want to look up a specific IP?</h2>
+      <p class="text-sm text-neutral-600 dark:text-neutral-400">Search any address to view its ISP, country, ASN, and coordinates.</p>
+      <LookupForm />
+    </div>
+
+    <!-- Long-form Guide -->
+    <article class="prose prose-neutral dark:prose-invert max-w-none flex flex-col gap-8 text-neutral-700 dark:text-neutral-300 leading-relaxed">
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">1. Definition of an IP Address</h2>
+        <p>
+          An <strong>IP address</strong> (Internet Protocol address) is a unique numerical identifier assigned to every device connected to a computer network that uses the Internet Protocol suite. Much like a postal mailing address allows physical letters to reach your house, an IP address ensures that data packets—such as web pages, video streams, and emails—find their intended destination across the worldwide web.
+        </p>
+        <p>
+          IP addresses operate at <strong>Layer 3 (the Network Layer)</strong> of the OSI model. When you open a browser and type a domain name like <code>myipv4v6.com</code>, the Domain Name System (DNS) translates that human-friendly name into a numeric IP address, enabling your device to establish a direct connection.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">2. Public vs. Private IP Addresses</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 not-prose my-2">
+          <div class="p-5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <h3 class="font-bold text-base text-neutral-900 dark:text-white mb-1.5">Public IP Addresses</h3>
+            <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              Assigned directly by your Internet Service Provider (ISP). Visible to every web server you visit, allowing the internet to route data back to your local router.
+            </p>
+          </div>
+          <div class="p-5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <h3 class="font-bold text-base text-neutral-900 dark:text-white mb-1.5">Private IP Addresses</h3>
+            <p class="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              Assigned by your home or office Wi-Fi router (e.g. 192.168.1.100). Used only inside your local network and never routable across the public internet.
+            </p>
+          </div>
+        </div>
+        <p>
+          Your home router uses a technology called <strong>NAT (Network Address Translation)</strong> to map dozens of private devices (phones, laptops, smart TVs) onto a single shared public IP address.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">3. How Geolocation Works</h2>
+        <p>
+          When you query an IP address on <code>myipv4v6.com</code>, our edge engine checks the allocation database maintained by regional internet registries (RIRs) such as ARIN, RIPE NCC, APNIC, LACNIC, and AFRINIC. Geolocation databases correlate IP address blocks with the telecommunications infrastructure hubs where that traffic is routed.
+        </p>
+        <p>
+          <strong>Crucial Privacy Note:</strong> IP geolocation is based on network routing hubs, not GPS. It typically identifies your city, state, or postal code district, but <em>never</em> your physical street address or name.
+        </p>
+      </section>
+    </article>
+
+    <!-- FAQs -->
+    <div class="pt-6 border-t border-neutral-200/80 dark:border-neutral-800">
+      <FAQAccordion faqs={faqs} />
+    </div>
+  </div>
+</Layout>

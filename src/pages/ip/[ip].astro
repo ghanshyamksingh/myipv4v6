@@ -1,0 +1,141 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import IPCard from '../../components/IPCard.astro';
+import IPDetailsGrid from '../../components/IPDetailsGrid.astro';
+import LookupForm from '../../components/LookupForm.astro';
+import NetworkTools from '../../components/NetworkTools.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import FAQAccordion from '../../components/FAQAccordion.astro';
+import { cleanIP, isValidIP, getClientIP } from '../../utils/ip';
+import { enrichIP } from '../../utils/enrichment';
+import { checkRateLimit } from '../../utils/rateLimit';
+import { getFAQs } from '../../utils/sanity';
+import { getCloudflareEnv } from '../../utils/cloudflare';
+import type { IPDetails } from '../../types/ip';
+
+const rawParam = Astro.params.ip || '';
+const targetIP = cleanIP(decodeURIComponent(rawParam));
+const isValid = isValidIP(targetIP);
+
+const clientIP = getClientIP(Astro.request);
+const cfEnv = await getCloudflareEnv();
+const kv = cfEnv.IP_CACHE;
+const provider = (cfEnv.IP_PROVIDER as any) || 'ip-api';
+const ipinfoToken = cfEnv.IPINFO_TOKEN;
+
+// Rate limiting check
+const rateLimit = await checkRateLimit(clientIP, kv, 100, 60);
+
+// Enrich target IP if valid
+let details: IPDetails | null = null;
+if (isValid) {
+  details = await enrichIP(targetIP, {
+    kv,
+    providerConfig: {
+      provider,
+      ipinfoToken,
+    },
+  });
+}
+
+const faqs = await getFAQs();
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'IP Lookup', url: '/ip-lookup' },
+  { name: targetIP || 'Unknown IP', url: `/ip/${encodeURIComponent(targetIP)}` },
+];
+
+const pageTitle = isValid && details
+  ? `IP Address ${targetIP} - ${details.city || details.country || 'Location'} & ISP Details | myipv4v6.com`
+  : `Invalid IP Address (${rawParam}) | myipv4v6.com`;
+
+const pageDescription = isValid && details
+  ? `Comprehensive lookup report for IP ${targetIP} (${details.version}): Country: ${details.country}, City: ${details.city || 'N/A'}, ISP: ${details.isp || details.asOrganization || 'N/A'}, ASN: ${details.asn || 'N/A'}. 24h edge cached.`
+  : `The queried IP address ${rawParam} is not a valid IPv4 or IPv6 address. Test another IP address.`;
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl={`https://myipv4v6.com/ip/${encodeURIComponent(targetIP)}`}
+  noIndex={!isValid || !rateLimit.allowed}
+>
+  <div class="max-w-4xl mx-auto w-full flex flex-col gap-8 sm:gap-10">
+    <!-- Breadcrumb Navigation -->
+    <Breadcrumbs items={breadcrumbItems} />
+
+    {!rateLimit.allowed && (
+      <div class="rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-8 text-center flex flex-col items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">Query Rate Limit Reached</h1>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400 max-w-md">
+          To maintain high availability for all users, requests are temporarily throttled. Please try your request again in a minute.
+        </p>
+        <a href="/" class="px-5 py-2.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold text-sm">
+          Return to Homepage
+        </a>
+      </div>
+    )}
+
+    {rateLimit.allowed && !isValid && (
+      <div class="rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-8 sm:p-12 text-center flex flex-col items-center gap-6 shadow-sm">
+        <div class="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center">
+          <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+
+        <div class="flex flex-col gap-2 max-w-lg">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white">
+            Invalid IP Address
+          </h1>
+          <p class="text-neutral-600 dark:text-neutral-400 text-sm sm:text-base">
+            "<code class="font-mono text-red-600 dark:text-red-400 font-bold">{rawParam}</code>" is not a recognized public or private IPv4 or IPv6 address.
+          </p>
+        </div>
+
+        <div class="w-full max-w-xl">
+          <LookupForm placeholder="Try searching a valid IP (e.g. 8.8.8.8)" />
+        </div>
+      </div>
+    )}
+
+    {rateLimit.allowed && isValid && details && (
+      <div class="flex flex-col gap-10">
+        <!-- Result Hero Card -->
+        <IPCard details={details} isVisitor={false} />
+
+        <!-- Quick Lookup Form -->
+        <div class="rounded-3xl bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-8">
+          <h2 class="text-base font-bold text-neutral-900 dark:text-white mb-3">
+            Lookup Another Address
+          </h2>
+          <LookupForm initialValue={targetIP} />
+        </div>
+
+        <!-- Rich Technical Details -->
+        <div class="flex flex-col gap-6">
+          <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+            Network & Geolocation Details for {targetIP}
+          </h2>
+          <IPDetailsGrid details={details} />
+        </div>
+
+        <!-- Terminal Diagnostics -->
+        <NetworkTools ip={details.ip} />
+
+        <!-- FAQs -->
+        <div class="pt-4">
+          <FAQAccordion faqs={faqs} />
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>

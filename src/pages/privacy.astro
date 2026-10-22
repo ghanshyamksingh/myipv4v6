@@ -1,0 +1,72 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'Privacy Policy', url: '/privacy' },
+];
+
+const pageTitle = 'Privacy Policy: Zero IP Logging Guarantee | myipv4v6.com';
+const pageDescription = 'Our strict privacy commitment: myipv4v6.com does not record, store, sell, or track visitor IP addresses. In-memory edge execution only.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/privacy"
+>
+  <div class="max-w-3xl mx-auto w-full flex flex-col gap-8">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <div class="flex flex-col gap-3 border-b border-neutral-200 dark:border-neutral-800 pb-6">
+      <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+        <span>Privacy-First Architecture</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-neutral-950 dark:text-white">
+        Privacy Policy
+      </h1>
+      <p class="text-xs text-neutral-500">Last updated: October 2026</p>
+    </div>
+
+    <div class="flex flex-col gap-6 text-neutral-700 dark:text-neutral-300 leading-relaxed text-sm sm:text-base">
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">1. Zero IP Storage Commitment</h2>
+        <p>
+          At <strong>myipv4v6.com</strong>, your privacy is our core architectural priority. When you visit our website, your IP address is processed strictly in volatile RAM memory by Cloudflare edge workers to return the requested network diagnostics. <strong>We do not write, log, archive, or persist your IP address to any permanent database or disk storage.</strong>
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">2. No Tracking Cookies & No Fingerprinting</h2>
+        <p>
+          We do not use tracking cookies, browser fingerprinting, cross-site trackers, or third-party advertising tracking pixels. We store only your local theme preference (Light or Dark mode) directly in your browser's <code>localStorage</code>, which remains entirely on your own device and is never transmitted to any external server.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">3. Third-Party Geolocation Providers</h2>
+        <p>
+          When you perform an explicit lookup on a third-party IP address, our server-side edge function queries reputable geolocation databases (such as Cloudflare Geolocation, ip-api, or ipinfo). These lookups are performed by our backend server, which prevents your own personal IP address from being revealed to the external provider.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">4. Rate Limiting & Anti-Abuse</h2>
+        <p>
+          To ensure service reliability, we enforce temporary sliding-window rate limiting. Rate counters are kept in ephemeral cache with a 60-second expiration and are automatically purged.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">5. Contact Information</h2>
+        <p>
+          If you have questions regarding this privacy policy, please reach out to us at <code>privacy@myipv4v6.com</code>.
+        </p>
+      </section>
+    </div>
+  </div>
+</Layout>

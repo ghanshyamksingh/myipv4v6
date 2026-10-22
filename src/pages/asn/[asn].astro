@@ -1,0 +1,92 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import LookupForm from '../../components/LookupForm.astro';
+
+const rawAsn = Astro.params.asn || '';
+const cleanAsnNumber = rawAsn.replace(/[^0-9]/g, '');
+const formattedAsn = cleanAsnNumber ? `AS${cleanAsnNumber}` : rawAsn.toUpperCase();
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'ASN Directory', url: '/ip-lookup' },
+  { name: formattedAsn, url: `/asn/${formattedAsn}` },
+];
+
+const pageTitle = `Autonomous System ${formattedAsn} - BGP Routing & Network Profile | myipv4v6.com`;
+const pageDescription = `Investigate Autonomous System ${formattedAsn}: BGP routing prefixes, peering connections, network topology, and IP blocks.`;
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl={`https://myipv4v6.com/asn/${formattedAsn}`}
+>
+  <div class="max-w-4xl mx-auto w-full flex flex-col gap-10">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- ASN Header -->
+    <div class="flex flex-col gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 w-fit">
+        BGP Autonomous System
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 dark:text-white">
+        {formattedAsn}
+      </h1>
+      <p class="text-base sm:text-lg text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        Autonomous System profile, BGP route advertisements, and IP prefix intelligence for <span class="font-mono font-semibold text-neutral-900 dark:text-white">{formattedAsn}</span>.
+      </p>
+    </div>
+
+    <!-- Lookup Form -->
+    <div class="rounded-3xl bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-8">
+      <h2 class="text-base font-bold text-neutral-900 dark:text-white mb-2">Check an IP inside this Network</h2>
+      <LookupForm placeholder="Enter IP address to verify its ASN" />
+    </div>
+
+    <!-- ASN Info Card -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="p-6 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex flex-col gap-3">
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white">BGP Routing Information</h3>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">
+          Autonomous System Numbers (ASNs) are globally unique identifiers used in Border Gateway Protocol (BGP) routing between Internet Service Providers and enterprise backbones.
+        </p>
+        <div class="pt-2">
+          <a
+            href={`https://bgp.he.net/${formattedAsn}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            <span>View BGP Toolkit Report for {formattedAsn}</span>
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="p-6 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex flex-col gap-3">
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white">WHOIS & Peering</h3>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">
+          Verify peering agreements, Internet Exchange Points (IXPs), and point-of-presence (PoP) locations for {formattedAsn}.
+        </p>
+        <div class="pt-2">
+          <a
+            href={`https://www.peeringdb.com/search?q=${formattedAsn}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+          >
+            <span>Search PeeringDB Profile</span>
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

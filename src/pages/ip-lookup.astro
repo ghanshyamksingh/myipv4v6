@@ -1,0 +1,98 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import LookupForm from '../components/LookupForm.astro';
+import FAQAccordion from '../components/FAQAccordion.astro';
+import { getFAQs } from '../utils/sanity';
+
+const faqs = await getFAQs();
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'IP Lookup', url: '/ip-lookup' },
+];
+
+const popularProviders = [
+  { name: 'Cloudflare Public DNS', ipv4: '1.1.1.1', ipv6: '2606:4700:4700::1111', asn: 'AS13335' },
+  { name: 'Google Public DNS', ipv4: '8.8.8.8', ipv6: '2001:4860:4860::8888', asn: 'AS15169' },
+  { name: 'Quad9 DNS (Security)', ipv4: '9.9.9.9', ipv6: '2620:fe::fe', asn: 'AS19281' },
+  { name: 'OpenDNS (Cisco)', ipv4: '208.67.222.222', ipv6: '2620:119:35::35', asn: 'AS36692' },
+];
+
+const pageTitle = 'IP Address Lookup: Search Geolocation, ISP & ASN | myipv4v6.com';
+const pageDescription = 'Lookup any public IPv4 or IPv6 address. Find real-time network geolocation, Internet Service Provider (ISP), BGP routing ASN, and reverse DNS.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/ip-lookup"
+>
+  <div class="max-w-4xl mx-auto w-full flex flex-col gap-10">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- Page Header -->
+    <div class="flex flex-col gap-4 text-center max-w-2xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 w-fit mx-auto">
+        Global Network Intelligence
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 dark:text-white">
+        IP Address Lookup Tool
+      </h1>
+      <p class="text-base sm:text-lg text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        Query any IPv4 or IPv6 address to discover its ISP, ASN routing record, geographic location, and reverse DNS hostname.
+      </p>
+    </div>
+
+    <!-- Search Bar Card -->
+    <div class="rounded-3xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-10 shadow-sm">
+      <LookupForm placeholder="Enter IPv4 or IPv6 (e.g. 1.1.1.1 or 2001:4860:4860::8888)" />
+    </div>
+
+    <!-- Popular Addresses Table -->
+    <div class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">
+          Popular Public Anycast Resolvers
+        </h2>
+        <span class="text-xs text-neutral-500">Fast lookup samples</span>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xs">
+        <table class="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 text-neutral-900 dark:text-white font-semibold">
+              <th class="py-3 px-4">Provider</th>
+              <th class="py-3 px-4">IPv4 Address</th>
+              <th class="py-3 px-4">IPv6 Address</th>
+              <th class="py-3 px-4">ASN</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-100 dark:divide-neutral-800/80">
+            {popularProviders.map((item) => (
+              <tr class="hover:bg-neutral-50 dark:hover:bg-neutral-850/50 transition-colors">
+                <td class="py-3 px-4 font-semibold text-neutral-900 dark:text-white">{item.name}</td>
+                <td class="py-3 px-4 font-mono">
+                  <a href={`/ip/${item.ipv4}`} class="text-blue-600 dark:text-blue-400 hover:underline">
+                    {item.ipv4}
+                  </a>
+                </td>
+                <td class="py-3 px-4 font-mono text-xs truncate max-w-[200px]">
+                  <a href={`/ip/${item.ipv6}`} class="text-purple-600 dark:text-purple-400 hover:underline">
+                    {item.ipv6}
+                  </a>
+                </td>
+                <td class="py-3 px-4 font-mono text-xs text-neutral-500 dark:text-neutral-400">{item.asn}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Explanatory Guide -->
+    <div class="pt-6 border-t border-neutral-200/80 dark:border-neutral-800">
+      <FAQAccordion faqs={faqs} />
+    </div>
+  </div>
+</Layout>

@@ -1,0 +1,83 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'About Us', url: '/about' },
+];
+
+const pageTitle = 'About myipv4v6.com: Fast, Private IP Diagnostics & Network Tools';
+const pageDescription = 'Learn about myipv4v6.com: an edge-first, privacy-focused IP lookup and network diagnostic platform built on Astro, Tailwind v4, and Cloudflare.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/about"
+>
+  <div class="max-w-3xl mx-auto w-full flex flex-col gap-8">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <div class="flex flex-col gap-3 border-b border-neutral-200 dark:border-neutral-800 pb-6">
+      <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+        About the Platform
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-neutral-950 dark:text-white">
+        About myipv4v6.com
+      </h1>
+      <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        Building the fastest, most privacy-conscious IP lookup and network diagnostic tool on the modern web.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-8 text-neutral-700 dark:text-neutral-300 leading-relaxed text-sm sm:text-base">
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">Our Mission</h2>
+        <p>
+          Most legacy IP lookup websites are bloated with intrusive banner ads, slow popups, and aggressive third-party trackers that record your digital footprint. 
+        </p>
+        <p>
+          <strong>myipv4v6.com</strong> was created to deliver an uncompromising alternative: lightning-fast dual-stack IPv4/IPv6 detection, deep BGP routing insights, and zero user tracking.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-4">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">Modern Edge Architecture</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <h3 class="font-bold text-neutral-900 dark:text-white text-base mb-1">Astro Framework</h3>
+            <p class="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
+              Zero JavaScript by default for pure static speed, hydrating only what is needed for theme and clipboard actions.
+            </p>
+          </div>
+          <div class="p-5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <h3 class="font-bold text-neutral-900 dark:text-white text-base mb-1">Cloudflare Global Edge</h3>
+            <p class="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
+              Executed across 300+ edge data centers worldwide for sub-10ms latency and high-speed BGP geolocation detection.
+            </p>
+          </div>
+          <div class="p-5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <h3 class="font-bold text-neutral-900 dark:text-white text-base mb-1">Tailwind CSS v4</h3>
+            <p class="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
+              Modern utility design system with native dark mode support and crisp typography.
+            </p>
+          </div>
+          <div class="p-5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+            <h3 class="font-bold text-neutral-900 dark:text-white text-base mb-1">Sanity CMS</h3>
+            <p class="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400">
+              Structured headless content management for real-time editorial updates, guides, and SEO governance.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">Developer-First Features</h2>
+        <p>
+          Whether you are a network engineer diagnosing BGP peering hops, a developer needing a reliable cURL API endpoint, or a privacy-conscious user checking your VPN status, myipv4v6.com is tailored for your daily workflow.
+        </p>
+      </section>
+    </div>
+  </div>
+</Layout>

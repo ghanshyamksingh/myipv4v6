@@ -1,0 +1,103 @@
+---
+import ThemeToggle from './ThemeToggle.astro';
+
+const navLinks = [
+  { label: 'What is My IP', href: '/what-is-my-ip' },
+  { label: 'IPv4', href: '/ipv4' },
+  { label: 'IPv6', href: '/ipv6' },
+  { label: 'Lookup', href: '/ip-lookup' },
+  { label: 'Blog', href: '/blog' },
+  { label: 'API', href: '/api/ip' },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="sticky top-0 z-40 w-full backdrop-blur-md bg-white/80 dark:bg-neutral-950/80 border-b border-neutral-200/80 dark:border-neutral-800 transition-colors">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
+    <!-- Brand Logo -->
+    <a href="/" class="flex items-center gap-2.5 group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-xl p-1">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+        </svg>
+      </div>
+      <div class="flex items-baseline">
+        <span class="text-xl sm:text-2xl font-black tracking-tight text-neutral-950 dark:text-white">myipv4v6</span>
+        <span class="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">.com</span>
+      </div>
+    </a>
+
+    <!-- Desktop Navigation Links -->
+    <nav class="hidden md:flex items-center gap-1">
+      {navLinks.map((link) => {
+        const isActive = currentPath === link.href || (link.href !== '/' && currentPath.startsWith(link.href));
+        return (
+          <a
+            href={link.href}
+            class={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              isActive
+                ? 'bg-neutral-100 text-blue-600 dark:bg-neutral-800 dark:text-blue-400'
+                : 'text-neutral-600 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
+            }`}
+          >
+            {link.label}
+          </a>
+        );
+      })}
+    </nav>
+
+    <!-- Right Utility: Theme Toggle + Mobile Menu Button -->
+    <div class="flex items-center gap-2">
+      <ThemeToggle />
+
+      <!-- Mobile Hamburger Button -->
+      <button
+        id="mobile-menu-btn"
+        type="button"
+        aria-label="Open navigation menu"
+        class="md:hidden p-2 rounded-xl text-neutral-600 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Drawer Menu -->
+  <div
+    id="mobile-menu-drawer"
+    class="hidden md:hidden border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-4 py-4 transition-all"
+  >
+    <nav class="flex flex-col gap-1">
+      {navLinks.map((link) => {
+        const isActive = currentPath === link.href || (link.href !== '/' && currentPath.startsWith(link.href));
+        return (
+          <a
+            href={link.href}
+            class={`px-4 py-3 rounded-xl text-base font-semibold transition-colors ${
+              isActive
+                ? 'bg-neutral-100 text-blue-600 dark:bg-neutral-800 dark:text-blue-400'
+                : 'text-neutral-700 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white'
+            }`}
+          >
+            {link.label}
+          </a>
+        );
+      })}
+    </nav>
+  </div>
+</header>
+
+<script is:inline>
+  (function () {
+    const btn = document.getElementById('mobile-menu-btn');
+    const drawer = document.getElementById('mobile-menu-drawer');
+    if (!btn || !drawer) return;
+
+    btn.addEventListener('click', () => {
+      drawer.classList.toggle('hidden');
+    });
+  })();
+</script>

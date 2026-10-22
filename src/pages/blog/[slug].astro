@@ -1,0 +1,199 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { getBlogPosts } from '../../utils/sanity';
+import { generateArticleSchema } from '../../utils/seo';
+import type { SanityPost } from '../../types/sanity';
+
+export async function getStaticPaths() {
+  const posts = await getBlogPosts();
+  return posts.map((post) => ({
+    params: { slug: post.slug.current },
+    props: { post },
+  }));
+}
+
+interface Props {
+  post: SanityPost;
+}
+
+const { post } = Astro.props;
+
+const formattedDate = new Date(post.publishedAt).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'Blog', url: '/blog' },
+  { name: post.title, url: `/blog/${post.slug.current}` },
+];
+
+const articleSchema = generateArticleSchema({
+  title: post.title,
+  description: post.excerpt || post.title,
+  publishedAt: post.publishedAt,
+  authorName: post.author?.name,
+  url: `https://myipv4v6.com/blog/${post.slug.current}`,
+});
+---
+
+<Layout
+  title={`${post.title} | myipv4v6.com`}
+  description={post.excerpt || post.title}
+  canonicalUrl={`https://myipv4v6.com/blog/${post.slug.current}`}
+  type="article"
+  schema={articleSchema}
+>
+  <div class="max-w-3xl mx-auto w-full flex flex-col gap-8">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- Article Header -->
+    <header class="flex flex-col gap-4 border-b border-neutral-200 dark:border-neutral-800 pb-8">
+      <div class="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+        <span>Network Architecture</span>
+        <span>•</span>
+        <span>{post.readTimeMinutes || 5} min read</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-neutral-950 dark:text-white leading-tight">
+        {post.title}
+      </h1>
+
+      <div class="flex items-center justify-between text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 pt-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs">
+            {post.author?.name ? post.author.name[0] : 'N'}
+          </div>
+          <span class="font-medium text-neutral-900 dark:text-neutral-200">{post.author?.name || 'myipv4v6 Team'}</span>
+        </div>
+        <time datetime={post.publishedAt}>{formattedDate}</time>
+      </div>
+    </header>
+
+    <!-- Article Content -->
+    <article class="prose prose-neutral dark:prose-invert max-w-none flex flex-col gap-6 text-neutral-700 dark:text-neutral-300 leading-relaxed text-base sm:text-lg">
+      {post.excerpt && (
+        <p class="text-lg sm:text-xl font-medium text-neutral-800 dark:text-neutral-200 border-l-4 border-blue-600 pl-4 italic">
+          {post.excerpt}
+        </p>
+      )}
+
+      {post.slug.current === 'ipv4-vs-ipv6-guide' && (
+        <div class="flex flex-col gap-6">
+          <p>
+            The internet protocol defines how packets of data are addressed, routed, and delivered across interconnected networks. For four decades, <strong>IPv4</strong> was the unchallenged protocol of global communications. However, with billions of smartphones, cloud containers, and smart devices joining the web, the 32-bit address space reached its mathematical limit.
+          </p>
+
+          <h2 class="text-2xl font-bold text-neutral-950 dark:text-white mt-4">Key Structural Differences</h2>
+          <div class="overflow-x-auto not-prose my-3">
+            <table class="w-full text-left text-sm border-collapse rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800">
+              <thead class="bg-neutral-100 dark:bg-neutral-850 text-neutral-900 dark:text-white font-bold">
+                <tr>
+                  <th class="py-3 px-4">Feature</th>
+                  <th class="py-3 px-4">IPv4</th>
+                  <th class="py-3 px-4">IPv6</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
+                <tr>
+                  <td class="py-2.5 px-4 font-semibold">Address Length</td>
+                  <td class="py-2.5 px-4">32 bits (4 octets)</td>
+                  <td class="py-2.5 px-4">128 bits (16 octets)</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-4 font-semibold">Address Space</td>
+                  <td class="py-2.5 px-4">~4.3 Billion</td>
+                  <td class="py-2.5 px-4">~3.4 × 10³⁸ (Undecillion)</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-4 font-semibold">Notation</td>
+                  <td class="py-2.5 px-4 font-mono">192.0.2.1</td>
+                  <td class="py-2.5 px-4 font-mono">2001:db8::1</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-4 font-semibold">Configuration</td>
+                  <td class="py-2.5 px-4">DHCP or Manual</td>
+                  <td class="py-2.5 px-4">SLAAC (Stateless Auto) + DHCPv6</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-4 font-semibold">Packet Header Size</td>
+                  <td class="py-2.5 px-4">20-60 bytes (variable)</td>
+                  <td class="py-2.5 px-4">40 bytes (fixed)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="text-2xl font-bold text-neutral-950 dark:text-white mt-4">Why Fixed Header Size Accelerates Routing</h2>
+          <p>
+            Unlike IPv4 headers that require routers to calculate checksums and variable option fields on every single hop, IPv6 standardizes a fixed 40-byte base header. Network switches and edge routers can process packets directly in silicon (ASICs) without software interrupts, significantly cutting edge packet latency.
+          </p>
+        </div>
+      )}
+
+      {post.slug.current === 'what-does-ip-reveal' && (
+        <div class="flex flex-col gap-6">
+          <p>
+            When you browse the web, every server you interact with sees your public IP address. But what can an observer actually determine from those numbers alone?
+          </p>
+
+          <h2 class="text-2xl font-bold text-neutral-950 dark:text-white mt-4">What Your IP Address Reveals</h2>
+          <ul class="list-disc pl-5 space-y-2">
+            <li><strong>Approximate Geolocation:</strong> Your country, state or region, and metropolitan area.</li>
+            <li><strong>Internet Service Provider (ISP):</strong> The telecommunications carrier that owns the IP block (e.g., Comcast, AT&T, Vodafone).</li>
+            <li><strong>Autonomous System Number (ASN):</strong> The global BGP routing identifier.</li>
+            <li><strong>Timezone & Local Time:</strong> Estimated based on regional geographic distribution.</li>
+          </ul>
+
+          <h2 class="text-2xl font-bold text-neutral-950 dark:text-white mt-4">What Your IP Address CANNOT Reveal</h2>
+          <ul class="list-disc pl-5 space-y-2">
+            <li><strong>Your Exact Physical Address:</strong> It cannot pinpoint your street, apartment, or GPS coordinates.</li>
+            <li><strong>Your Real Identity:</strong> It does not disclose your name, email address, or phone number.</li>
+            <li><strong>Your Browsing History:</strong> Individual websites only see their own interactions with your IP.</li>
+          </ul>
+        </div>
+      )}
+
+      {post.slug.current === 'understanding-autonomous-system-numbers' && (
+        <div class="flex flex-col gap-6">
+          <p>
+            The internet is not a single homogenous network; it is a sprawling federation of tens of thousands of independent networks called <strong>Autonomous Systems (AS)</strong>.
+          </p>
+
+          <h2 class="text-2xl font-bold text-neutral-950 dark:text-white mt-4">What Is an Autonomous System?</h2>
+          <p>
+            An Autonomous System is a connected group of IP networks managed by one or more network operators that has a single, clearly defined routing policy. Every AS is assigned a unique 16-bit or 32-bit number called an <strong>ASN (Autonomous System Number)</strong> by regional registries.
+          </p>
+
+          <h2 class="text-2xl font-bold text-neutral-950 dark:text-white mt-4">Border Gateway Protocol (BGP)</h2>
+          <p>
+            Networks exchange routing information using BGP. When data travels from your home computer to a server hosted in another country, it traverses multiple AS hops. By looking up the ASN on myipv4v6.com, you can identify the exact network entity responsible for originating traffic for that IP.
+          </p>
+        </div>
+      )}
+    </article>
+
+    <!-- Bottom Navigation / Back to Blog -->
+    <div class="pt-8 border-t border-neutral-200 dark:border-neutral-800 flex justify-between items-center">
+      <a
+        href="/blog"
+        class="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span>Back to All Articles</span>
+      </a>
+
+      <a
+        href="/"
+        class="text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400"
+      >
+        Check Your IP
+      </a>
+    </div>
+  </div>
+</Layout>

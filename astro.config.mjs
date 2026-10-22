@@ -17,12 +17,15 @@ export default defineConfig({
   adapter: cloudflare(),
 
   integrations: [
-    sitemap(),
+    sitemap({
+      filter: (page) => !page.includes('/api/') && !page.includes('/studio'),
+    }),
     sanity({
-      projectId: 'avfq9cch', // ← put your real Project ID
-      dataset: 'production',
+      projectId: process.env.PUBLIC_SANITY_PROJECT_ID || 'avfq9cch',
+      dataset: process.env.PUBLIC_SANITY_DATASET || 'production',
       useCdn: false,
       apiVersion: '2025-10-01',
+      studioBasePath: '/studio',
     }),
     react(),
   ],

@@ -1,0 +1,89 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import LookupForm from '../components/LookupForm.astro';
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'IPv6 Guide', url: '/ipv6' },
+];
+
+const pageTitle = 'IPv6 Guide: 128-Bit Addressing, Notation & Global Adoption | myipv4v6.com';
+const pageDescription = 'Master IPv6: 128-bit address syntax, zero-compression rules, SLAAC auto-configuration, Happy Eyeballs RFC 8305, and dual-stack migration.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/ipv6"
+>
+  <div class="max-w-4xl mx-auto w-full flex flex-col gap-10">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- Header -->
+    <div class="flex flex-col gap-4 border-b border-neutral-200/80 dark:border-neutral-800 pb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 w-fit">
+        Next-Generation Internet
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 dark:text-white">
+        IPv6 (Internet Protocol Version 6)
+      </h1>
+      <p class="text-lg text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        The modern standard designed to replace IPv4. Featuring 128-bit addressing, simplified packet headers, stateless auto-configuration, and end-to-end connectivity without NAT.
+      </p>
+    </div>
+
+    <!-- Search Tool -->
+    <div class="rounded-3xl bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-8">
+      <h2 class="text-base font-bold text-neutral-900 dark:text-white mb-2">Test an IPv6 Address</h2>
+      <LookupForm placeholder="Enter IPv6 address (e.g. 2606:4700:4700::1111 or 2001:4860:4860::8888)" />
+    </div>
+
+    <!-- Guide Content -->
+    <article class="flex flex-col gap-8 text-neutral-700 dark:text-neutral-300 leading-relaxed">
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">1. The Scale of IPv6: 340 Undecillion Addresses</h2>
+        <p>
+          Internet Protocol Version 6 (IPv6) expands the address width from 32 bits to <strong>128 bits</strong>. This provides an almost unfathomable address space of:
+        </p>
+        <div class="p-4 rounded-2xl bg-neutral-900 text-purple-300 font-mono text-sm overflow-x-auto my-2">
+          2^128 = 340,282,366,920,938,463,463,374,607,431,768,211,456 addresses
+        </div>
+        <p>
+          That equates to approximately 665,570,793,348,866,943,898,599 (6.65 × 10<sup>23</sup>) addresses for every single square meter of the Earth's surface!
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">2. IPv6 Address Notation & Compression Rules</h2>
+        <p>
+          IPv6 addresses are written as eight groups of four hexadecimal digits (each group represents 16 bits), separated by colons:
+        </p>
+        <div class="p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 font-mono text-sm overflow-x-auto my-2">
+          Full form: 2001:0db8:0000:0000:0000:0000:1428:57ab<br/>
+          Compressed: 2001:db8::1428:57ab
+        </div>
+        <p><strong>Two Standard Compression Rules (RFC 5952):</strong></p>
+        <ol class="list-decimal pl-5 space-y-1.5 text-sm sm:text-base">
+          <li><strong>Omit Leading Zeros:</strong> Within each 16-bit block, leading zeros are omitted. For example, <code>:0042:</code> becomes <code>:42:</code>.</li>
+          <li><strong>Double Colon (::) Substitution:</strong> A single contiguous run of one or more 16-bit blocks of all zeros can be replaced with <code>::</code>. This can only be applied once in any address to prevent ambiguity.</li>
+        </ol>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">3. How Dual-Stack & Happy Eyeballs Work</h2>
+        <p>
+          Today's internet functions primarily in a <strong>Dual-Stack</strong> state: routers, operating systems, and servers run IPv4 and IPv6 simultaneously side by side.
+        </p>
+        <p>
+          When you connect to a dual-stacked website, your web browser invokes the <strong>Happy Eyeballs algorithm (RFC 8305)</strong>:
+        </p>
+        <ul class="list-disc pl-5 space-y-1.5 text-sm sm:text-base">
+          <li>The browser sends DNS queries for both IPv6 (AAAA record) and IPv4 (A record) in parallel.</li>
+          <li>It starts establishing an IPv6 connection. If IPv6 does not respond within ~250 milliseconds, it immediately starts an IPv4 connection in parallel.</li>
+          <li>Whichever TCP/TLS connection completes the handshake first wins and carries your web traffic.</li>
+        </ul>
+      </section>
+    </article>
+  </div>
+</Layout>

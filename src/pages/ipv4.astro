@@ -1,0 +1,119 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import LookupForm from '../components/LookupForm.astro';
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'IPv4 Guide', url: '/ipv4' },
+];
+
+const pageTitle = 'IPv4 Address: Architecture, Exhaustion, and Subnetting Guide | myipv4v6.com';
+const pageDescription = 'Understand IPv4 32-bit address architecture, CIDR subnetting, RFC 1918 private ranges, NAT translation, and IPv4 exhaustion history.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/ipv4"
+>
+  <div class="max-w-4xl mx-auto w-full flex flex-col gap-10">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- Header -->
+    <div class="flex flex-col gap-4 border-b border-neutral-200/80 dark:border-neutral-800 pb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 w-fit">
+        IPv4 Technical Reference
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-neutral-950 dark:text-white">
+        IPv4 (Internet Protocol Version 4)
+      </h1>
+      <p class="text-lg text-neutral-600 dark:text-neutral-400 leading-relaxed">
+        The foundational networking protocol that built the modern internet. Learn how 32-bit addressing, octets, CIDR notation, and Network Address Translation (NAT) operate.
+      </p>
+    </div>
+
+    <!-- Search Tool -->
+    <div class="rounded-3xl bg-neutral-100/80 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 p-6 sm:p-8">
+      <h2 class="text-base font-bold text-neutral-900 dark:text-white mb-2">Test an IPv4 Address</h2>
+      <LookupForm placeholder="Enter IPv4 address (e.g. 1.1.1.1 or 8.8.8.8)" />
+    </div>
+
+    <!-- Guide Content -->
+    <article class="flex flex-col gap-8 text-neutral-700 dark:text-neutral-300 leading-relaxed">
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">1. How IPv4 Addressing Works</h2>
+        <p>
+          Internet Protocol Version 4 (IPv4) was deployed in 1983 for ARPANET and defined in <strong>RFC 791</strong>. An IPv4 address is a 32-bit numeric value represented as four decimal numbers (each ranging from 0 to 255) separated by dots. Each number is called an <em>octet</em> because it represents 8 binary bits:
+        </p>
+        <div class="p-4 rounded-2xl bg-neutral-900 text-neutral-100 font-mono text-sm overflow-x-auto my-2">
+          Dotted Decimal: 192 . 0 . 2 . 1<br/>
+          Binary Format:  11000000 . 00000000 . 00000010 . 00000001
+        </div>
+        <p>
+          Because IPv4 is 32 bits wide, the total address space is exactly 2<sup>32</sup>, or <strong>4,294,967,296 unique addresses</strong>.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">2. Private IPv4 Ranges (RFC 1918)</h2>
+        <p>
+          To conserve address space, specific blocks were reserved exclusively for private local networks. These addresses cannot be routed over the public internet:
+        </p>
+        <div class="overflow-x-auto my-2">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-white font-bold">
+                <th class="py-2.5 pr-4">IP Range</th>
+                <th class="py-2.5 pr-4">CIDR Prefix</th>
+                <th class="py-2.5 pr-4">Total Addresses</th>
+                <th class="py-2.5">Typical Use Case</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-100 dark:divide-neutral-800/80">
+              <tr>
+                <td class="py-2.5 font-mono text-blue-600 dark:text-blue-400">10.0.0.0 – 10.255.255.255</td>
+                <td class="py-2.5 font-mono">10.0.0.0/8</td>
+                <td class="py-2.5">16,777,216</td>
+                <td class="py-2.5">Large enterprise & cloud VPC networks</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 font-mono text-blue-600 dark:text-blue-400">172.16.0.0 – 172.31.255.255</td>
+                <td class="py-2.5 font-mono">172.16.0.0/12</td>
+                <td class="py-2.5">1,048,576</td>
+                <td class="py-2.5">Medium corporate networks & Docker</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 font-mono text-blue-600 dark:text-blue-400">192.168.0.0 – 192.168.255.255</td>
+                <td class="py-2.5 font-mono">192.168.0.0/16</td>
+                <td class="py-2.5">65,536</td>
+                <td class="py-2.5">Home Wi-Fi routers & small offices</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 font-mono text-blue-600 dark:text-blue-400">127.0.0.1 – 127.255.255.255</td>
+                <td class="py-2.5 font-mono">127.0.0.0/8</td>
+                <td class="py-2.5">16,777,216</td>
+                <td class="py-2.5">Loopback (localhost testing)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-2xl font-bold text-neutral-950 dark:text-white">3. IPv4 Exhaustion & The Role of NAT</h2>
+        <p>
+          On February 3, 2011, the Internet Assigned Numbers Authority (IANA) officially allocated the last unassigned /8 address blocks. Regional registries subsequently exhausted their free pools:
+        </p>
+        <ul class="list-disc pl-5 space-y-1.5 text-sm sm:text-base">
+          <li><strong>APNIC (Asia-Pacific):</strong> April 15, 2011</li>
+          <li><strong>RIPE NCC (Europe):</strong> September 14, 2012</li>
+          <li><strong>ARIN (North America):</strong> September 24, 2015</li>
+        </ul>
+        <p>
+          The internet survived this exhaustion through widespread deployment of <strong>Carrier-Grade NAT (CGNAT)</strong> and the global rollout of <strong>IPv6</strong>.
+        </p>
+      </section>
+    </article>
+  </div>
+</Layout>

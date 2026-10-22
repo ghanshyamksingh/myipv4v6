@@ -1,0 +1,72 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="w-full bg-neutral-50 dark:bg-neutral-950 border-t border-neutral-200/80 dark:border-neutral-850 mt-20 transition-colors">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <!-- Col 1: Brand & Privacy Guarantee -->
+      <div class="md:col-span-1 flex flex-col gap-4">
+        <a href="/" class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+            </svg>
+          </div>
+          <span class="text-xl font-black tracking-tight text-neutral-950 dark:text-white">myipv4v6<span class="text-blue-600 dark:text-blue-400">.com</span></span>
+        </a>
+        <p class="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
+          High-precision, edge-first IP address lookup and network diagnostics. Engineered with zero tracking and strict in-memory execution.
+        </p>
+        <div class="flex items-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Edge Network Active • Zero Logging</span>
+        </div>
+      </div>
+
+      <!-- Col 2: Network Tools -->
+      <div class="flex flex-col gap-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-200">Tools</h4>
+        <ul class="flex flex-col gap-2.5 text-sm text-neutral-600 dark:text-neutral-400">
+          <li><a href="/what-is-my-ip" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">What is My IP</a></li>
+          <li><a href="/ipv4" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">IPv4 Lookup & Architecture</a></li>
+          <li><a href="/ipv6" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">IPv6 Address Checker</a></li>
+          <li><a href="/ip-lookup" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">IP Address Lookup Tool</a></li>
+          <li><a href="/api/ip" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Developer JSON API</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Knowledge & Guides -->
+      <div class="flex flex-col gap-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-200">Articles & Guides</h4>
+        <ul class="flex flex-col gap-2.5 text-sm text-neutral-600 dark:text-neutral-400">
+          <li><a href="/blog" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Network Intelligence Blog</a></li>
+          <li><a href="/blog/ipv4-vs-ipv6-guide" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">IPv4 vs IPv6 Deep Dive</a></li>
+          <li><a href="/blog/what-does-ip-reveal" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">What Does Your IP Reveal?</a></li>
+          <li><a href="/blog/understanding-autonomous-system-numbers" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Understanding ASNs & BGP</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 4: Legal & System -->
+      <div class="flex flex-col gap-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-200">Company & Legal</h4>
+        <ul class="flex flex-col gap-2.5 text-sm text-neutral-600 dark:text-neutral-400">
+          <li><a href="/about" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">About myipv4v6</a></li>
+          <li><a href="/privacy" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy Policy</a></li>
+          <li><a href="/terms" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Terms of Service</a></li>
+          <li><a href="/studio" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Sanity CMS Studio</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="mt-12 pt-8 border-t border-neutral-200/60 dark:border-neutral-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500 dark:text-neutral-400">
+      <p>© {currentYear} myipv4v6.com. All rights reserved.</p>
+      <div class="flex items-center gap-6">
+        <a href="/privacy" class="hover:text-neutral-900 dark:hover:text-white transition-colors">Privacy</a>
+        <a href="/terms" class="hover:text-neutral-900 dark:hover:text-white transition-colors">Terms</a>
+        <a href="/sitemap-index.xml" class="hover:text-neutral-900 dark:hover:text-white transition-colors">Sitemap</a>
+      </div>
+    </div>
+  </div>
+</footer>

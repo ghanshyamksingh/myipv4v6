@@ -27,7 +27,14 @@
     "react-is": "^19.3.1",
     "sanity": "^6.20.0",
     "styled-components": "^6.6.0",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.11",
+    "prettier": "^3.9.10",
+    "prettier-plugin-astro": "^1.1.1",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "typescript": "^6.0.3",
     "wrangler": "^4.151.3"
   }
 }

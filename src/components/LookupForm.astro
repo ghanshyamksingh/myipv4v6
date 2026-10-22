@@ -1,0 +1,86 @@
+---
+interface Props {
+  initialValue?: string;
+  placeholder?: string;
+  compact?: boolean;
+}
+
+const {
+  initialValue = '',
+  placeholder = 'Enter IPv4 or IPv6 address (e.g. 8.8.8.8 or 2606:4700:4700::1111)',
+  compact = false,
+} = Astro.props;
+
+const sampleIPs = [
+  { label: 'Cloudflare', ip: '1.1.1.1' },
+  { label: 'Google', ip: '8.8.8.8' },
+  { label: 'Quad9', ip: '9.9.9.9' },
+  { label: 'Cloudflare IPv6', ip: '2606:4700:4700::1111' },
+];
+---
+
+<div class="w-full">
+  <form
+    class="ip-search-form flex flex-col sm:flex-row gap-2.5 w-full"
+    method="GET"
+  >
+    <div class="relative flex-1">
+      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400 dark:text-neutral-500">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+
+      <input
+        type="text"
+        name="ip"
+        value={initialValue}
+        placeholder={placeholder}
+        required
+        autocomplete="off"
+        spellcheck="false"
+        class="ip-search-input w-full pl-11 pr-4 py-3.5 text-base sm:text-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-mono"
+      />
+    </div>
+
+    <button
+      type="submit"
+      class="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-2xl shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-950 cursor-pointer shrink-0"
+    >
+      <span>Lookup IP</span>
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+      </svg>
+    </button>
+  </form>
+
+  {!compact && (
+    <div class="mt-3.5 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+      <span class="font-medium text-neutral-600 dark:text-neutral-300">Quick tests:</span>
+      {sampleIPs.map((item) => (
+        <a
+          href={`/ip/${encodeURIComponent(item.ip)}`}
+          class="inline-flex items-center px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800/80 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 border border-neutral-200/60 dark:border-neutral-700/60 font-mono text-xs transition-colors"
+        >
+          {item.label}: <span class="font-semibold ml-1">{item.ip}</span>
+        </a>
+      ))}
+    </div>
+  )}
+</div>
+
+<script is:inline>
+  if (!window.__ipLookupFormInitialized) {
+    window.__ipLookupFormInitialized = true;
+    document.addEventListener('submit', (e) => {
+      const form = e.target && e.target.closest ? e.target.closest('.ip-search-form') : null;
+      if (!form) return;
+      e.preventDefault();
+      const input = form.querySelector('.ip-search-input');
+      const val = input ? input.value.trim() : '';
+      if (val) {
+        window.location.href = '/ip/' + encodeURIComponent(val);
+      }
+    });
+  }
+</script>

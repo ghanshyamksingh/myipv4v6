@@ -1,0 +1,64 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+
+const breadcrumbItems = [
+  { name: 'Home', url: '/' },
+  { name: 'Terms of Service', url: '/terms' },
+];
+
+const pageTitle = 'Terms of Service & Acceptable Use Policy | myipv4v6.com';
+const pageDescription = 'Review terms of use, API guidelines, rate limits, and acceptable service policies for myipv4v6.com.';
+---
+
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl="https://myipv4v6.com/terms"
+>
+  <div class="max-w-3xl mx-auto w-full flex flex-col gap-8">
+    <Breadcrumbs items={breadcrumbItems} />
+
+    <div class="flex flex-col gap-3 border-b border-neutral-200 dark:border-neutral-800 pb-6">
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-neutral-950 dark:text-white">
+        Terms of Service
+      </h1>
+      <p class="text-xs text-neutral-500">Effective Date: October 2026</p>
+    </div>
+
+    <div class="flex flex-col gap-6 text-neutral-700 dark:text-neutral-300 leading-relaxed text-sm sm:text-base">
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">1. Acceptance of Terms</h2>
+        <p>
+          By accessing or using <strong>myipv4v6.com</strong>, including our web interfaces, diagnostic tools, and public APIs, you agree to comply with and be bound by these Terms of Service.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">2. Acceptable Use Policy</h2>
+        <p>
+          You agree not to misuse our platform. Specifically, you agree not to:
+        </p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>Attempt to disrupt, overload, or mount Denial-of-Service (DoS) attacks against our edge network.</li>
+          <li>Circumvent rate limiting mechanisms on our web application or API endpoints.</li>
+          <li>Use automated scrapers in an abusive manner that degrades service availability for other users.</li>
+        </ul>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">3. API Usage Limits</h2>
+        <p>
+          Our public endpoint at <code>/api/ip</code> is provided free of charge for non-commercial diagnostic and development use. Standard rate limits (60 requests per minute per IP) apply. For high-volume enterprise data requirements, please contact us.
+        </p>
+      </section>
+
+      <section class="flex flex-col gap-2">
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">4. Disclaimer of Warranties</h2>
+        <p>
+          The services and geolocation data on myipv4v6.com are provided on an "as is" and "as available" basis. While we strive for maximum accuracy, IP geolocation is inherently approximate and we make no guarantees of exact physical precision.
+        </p>
+      </section>
+    </div>
+  </div>
+</Layout>

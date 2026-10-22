@@ -1,0 +1,39 @@
+---
+import type { BreadcrumbItem } from '../utils/seo';
+import { generateBreadcrumbSchema } from '../utils/seo';
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+const schema = generateBreadcrumbSchema(items);
+---
+
+<nav aria-label="Breadcrumb" class="w-full">
+  <ol class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+    {items.map((item, index) => {
+      const isLast = index === items.length - 1;
+      return (
+        <li class="inline-flex items-center gap-1.5">
+          {index > 0 && (
+            <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+          {isLast ? (
+            <span class="font-medium text-neutral-900 dark:text-neutral-100 truncate max-w-[200px] sm:max-w-none" aria-current="page">
+              {item.name}
+            </span>
+          ) : (
+            <a href={item.url} class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              {item.name}
+            </a>
+          )}
+        </li>
+      );
+    })}
+  </ol>
+</nav>
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />

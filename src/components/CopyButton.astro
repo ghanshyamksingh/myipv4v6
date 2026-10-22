@@ -1,0 +1,108 @@
+---
+interface Props {
+  text: string;
+  label?: string;
+  copiedLabel?: string;
+  className?: string;
+  showIconOnly?: boolean;
+}
+
+const {
+  text,
+  label = 'Copy',
+  copiedLabel = 'Copied!',
+  className = '',
+  showIconOnly = false,
+} = Astro.props;
+---
+
+<button
+  type="button"
+  data-copy-trigger
+  data-copy-text={text}
+  data-copied-label={copiedLabel}
+  data-default-label={label}
+  aria-label={`Copy ${text}`}
+  class={`copy-button-elem inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 cursor-pointer ${className}`}
+>
+  <!-- Copy Icon -->
+  <svg
+    class="copy-icon w-4 h-4 shrink-0 pointer-events-none"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    stroke-width="2"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10a2 2 0 00-2 2v3a2 2 0 002 2h10a2 2 0 002-2v-3a2 2 0 00-2-2z"
+    />
+  </svg>
+
+  <!-- Check Icon (hidden by default) -->
+  <svg
+    class="check-icon w-4 h-4 shrink-0 hidden pointer-events-none text-emerald-600 dark:text-emerald-400"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    stroke-width="2.5"
+  >
+    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+  </svg>
+
+  {!showIconOnly && <span class="button-label pointer-events-none">{label}</span>}
+</button>
+
+<script is:inline>
+  if (!window.__copyButtonInitialized) {
+    window.__copyButtonInitialized = true;
+    document.addEventListener('click', async (e) => {
+      const target = e.target;
+      const btn = target && target.closest ? target.closest('[data-copy-trigger]') : null;
+      if (!btn) return;
+
+      const textToCopy = btn.getAttribute('data-copy-text') || '';
+      const copiedLabel = btn.getAttribute('data-copied-label') || 'Copied!';
+      const defaultLabel = btn.getAttribute('data-default-label') || 'Copy';
+      const labelSpan = btn.querySelector('.button-label');
+      const copyIcon = btn.querySelector('.copy-icon');
+      const checkIcon = btn.querySelector('.check-icon');
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(textToCopy);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = textToCopy;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+
+        if (copyIcon && checkIcon) {
+          copyIcon.classList.add('hidden');
+          checkIcon.classList.remove('hidden');
+        }
+        if (labelSpan) {
+          labelSpan.textContent = copiedLabel;
+        }
+
+        setTimeout(() => {
+          if (copyIcon && checkIcon) {
+            copyIcon.classList.remove('hidden');
+            checkIcon.classList.add('hidden');
+          }
+          if (labelSpan) {
+            labelSpan.textContent = defaultLabel;
+          }
+        }, 2000);
+      } catch (err) {
+        console.error('Copy failed:', err);
+      }
+    });
+  }
+</script>

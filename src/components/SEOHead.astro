@@ -1,0 +1,80 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+  canonicalUrl?: string;
+  ogImage?: string;
+  noIndex?: boolean;
+  schema?: Record<string, any> | Array<Record<string, any>>;
+  type?: 'website' | 'article';
+}
+
+const {
+  title = 'What is My IP? Instantly Check Public IPv4 & IPv6 | myipv4v6.com',
+  description = 'Quickly find your public IPv4 and IPv6 address with rich network geolocation, ISP, ASN, timezone, and privacy diagnostics. Fast, edge-first, zero tracking.',
+  canonicalUrl,
+  ogImage = 'https://myipv4v6.com/og-default.png',
+  noIndex = false,
+  schema,
+  type = 'website',
+} = Astro.props;
+
+const siteUrl = 'https://myipv4v6.com';
+const currentUrl = canonicalUrl || new URL(Astro.url.pathname, siteUrl).toString();
+---
+
+<!-- Essential Meta Tags -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={currentUrl} />
+
+<!-- Robots Indexing Control -->
+{noIndex ? (
+  <meta name="robots" content="noindex, nofollow" />
+) : (
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+)}
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={currentUrl} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImage} />
+<meta property="og:site_name" content="myipv4v6.com" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:url" content={currentUrl} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+
+<!-- Favicons & App Icons -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" href="/favicon.ico" />
+<meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+
+<!-- Structured Data JSON-LD -->
+{schema && (
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify(Array.isArray(schema) ? schema : [schema])}
+  />
+)}
+
+<!-- Prevent FOUC (Flash of Unstyled Content) by setting dark theme immediately -->
+<script is:inline>
+  (function () {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  })();
+</script>
