@@ -15,7 +15,7 @@ Built with **Astro 7**, **Tailwind CSS v4**, **Cloudflare Workers/Pages**, and *
 - **Fast Dynamic Lookup (`/ip/[ip]`):** Query any public IPv4 or IPv6 address with multi-tier enrichment and Cloudflare KV 24-hour edge caching.
 - **Client-Side Private Search History:** Recent lookups are saved exclusively in browser `localStorage` and never transmitted to our servers.
 - **Developer-Friendly API (`/api/ip` & `/api/v1/ip`):** Returns JSON (`curl https://myipv4v6.com/api/ip`) or plain text (`curl -H "Accept: text/plain" https://myipv4v6.com/api/ip` or `?format=text`) with rate limiting and CORS support.
-- **Strict Zero-Logging Architecture:** Processing runs exclusively in volatile edge RAM; the application does not log, store, track, or sell visitor IP addresses.
+- **Strict Edge Privacy Architecture:** Visitor IP addresses are processed only in volatile edge memory. Enrichment results (including the looked-up IP) may be cached for up to 24 hours in Cloudflare KV solely for performance. We do not retain visitor IPs in any long-term database, analytics pipeline, or third-party tracker.
 - **Security & Headers Hardening:** Strict Content Security Policy (CSP), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and anti-clickjacking headers via edge middleware.
 - **Embedded Sanity CMS Studio (`/studio`):** Manage blog posts, static pages, FAQs, and SEO metadata directly from the integrated studio.
 - **SEO & Structured Data:** Automatic XML sitemap, `robots.txt`, 1200x630 Open Graph / Twitter Card (`/og-default.png`), and JSON-LD schema markup (`WebApplication`, `FAQPage`, `BreadcrumbList`, `Article`).
@@ -177,14 +177,53 @@ curl "https://myipv4v6.com/api/ip?q=2606:4700:4700::1111"
 curl "https://myipv4v6.com/api/v1/ip?q=8.8.8.8"
 ```
 
-### Rate Limiting & Headers
-- Policy: **60 requests per 60-second window** per client IP.
-- Headers returned on all responses:
-  - `X-RateLimit-Limit: 60`
-  - `X-RateLimit-Remaining: 59`
-  - `X-RateLimit-Reset: 1729674000`
-  - `Access-Control-Allow-Origin: *`
-- Over-limit status: `429 Too Many Requests` with `Retry-After: 60`.
+### Rate Limiting & Tiered Abuse Protection
+To balance high performance for regular visitors with upstream provider quota protection against automated scrapers, the edge applies tiered sliding-window rate limits:
+- **Visitor's Own IP (`/` and default `/api/ip`):** **60 requests per 60-second window**.
+- **Arbitrary Target Lookups (`/ip/[ip]` and `/api/ip?q=<ip>`):** **30 requests per 60-second window**.
+
+Headers returned on all responses:
+- `X-RateLimit-Limit: 60` (or `30` for lookup tier)
+- `X-RateLimit-Remaining: 29`
+- `X-RateLimit-Reset: 1729674000`
+- `Access-Control-Allow-Origin: *`
+
+Over-limit status: HTTP `429 Too Many Requests` with `Retry-After: 60`.
+
+---
+
+## Bogon & Private IP Handling
+
+All incoming query inputs are checked against RFC standards before initiating any upstream network or provider request. Special-use, private, and reserved addresses are identified instantly with zero network latency and returned with standard `isPrivate: true` enrichment:
+
+### Supported IPv4 Special & Bogon Ranges
+- `0.0.0.0/8` (Current network / "this" host, RFC 1122)
+- `10.0.0.0/8` (Private network, RFC 1918)
+- `100.64.0.0/10` (Carrier-Grade NAT / Shared address space, RFC 6598)
+- `127.0.0.0/8` (Loopback, RFC 1122)
+- `169.254.0.0/16` (Link-local unicast / APIPA, RFC 3927)
+- `172.16.0.0/12` (Private network range 172.16.0.0–172.31.255.255, RFC 1918)
+- `192.0.0.0/24` (IETF protocol assignments, RFC 6890)
+- `192.0.2.0/24` (TEST-NET-1 documentation, RFC 5737)
+- `192.168.0.0/16` (Private network, RFC 1918)
+- `198.51.100.0/24` (TEST-NET-2 documentation, RFC 5737)
+- `203.0.113.0/24` (TEST-NET-3 documentation, RFC 5737)
+- `224.0.0.0/4` (Multicast / Class D, RFC 5771)
+- `240.0.0.0/4` (Reserved for future use / Class E, RFC 1112)
+- `255.255.255.255` (Limited broadcast, RFC 919 / 6890)
+
+### Supported IPv6 Special & Bogon Ranges
+- `::` (Unspecified address, RFC 4291)
+- `::1` (Loopback address, RFC 4291)
+- `fc00::/7` (Unique Local Addresses / ULA, RFC 4193)
+- `fe80::/10` (Link-local unicast, RFC 4291)
+- `ff00::/8` (Multicast, RFC 4291)
+- `2001:db8::/32` (Documentation prefix, RFC 3849)
+- `2001::/32` (Teredo tunneling prefix, RFC 4380)
+- `2002::/16` (6to4 tunneling prefix, RFC 3056)
+- `::ffff:x.x.x.x` (IPv4-mapped addresses where the embedded IPv4 is private/bogon)
+
+Zone identifiers (e.g. `fe80::1%eth0`) and surrounding brackets (e.g. `[fe80::1]`) are stripped and normalized prior to validation.
 
 ---
 

@@ -26,8 +26,8 @@ const provider = (cfEnv.IP_PROVIDER as any) || 'ipwhois';
 const ipinfoToken = cfEnv.IPINFO_TOKEN;
 const ipApiKey = cfEnv.IP_API_KEY;
 
-// Rate limiting check (unified 60 requests per 60s per client IP)
-const rateLimit = await checkRateLimit(clientIP, kv, 60, 60);
+// Rate limiting check: Stricter tier for arbitrary lookups (30 requests per 60s per client IP)
+const rateLimit = await checkRateLimit(clientIP, kv, 30, 60, 'lookup');
 
 // Set rate limit headers
 const rateHeaders = getRateLimitHeaders(rateLimit);

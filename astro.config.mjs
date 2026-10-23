@@ -6,6 +6,24 @@ import sitemap from '@astrojs/sitemap';
 import sanity from '@sanity/astro';
 import react from '@astrojs/react';
 
+// Load local .env into process.env if available (Node 20.6+)
+try {
+  process.loadEnvFile?.();
+} catch {}
+
+const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+const sanityProjectId = process.env.PUBLIC_SANITY_PROJECT_ID;
+
+// In production builds, require PUBLIC_SANITY_PROJECT_ID to prevent deploying unauthenticated builds
+if (!sanityProjectId && !isDev) {
+  throw new Error(
+    '[FATAL CONFIG ERROR] PUBLIC_SANITY_PROJECT_ID environment variable is required for production builds. Please set PUBLIC_SANITY_PROJECT_ID in your Cloudflare Dashboard or deployment environment.'
+  );
+}
+
+// Development-only safe placeholder if unset locally
+const resolvedSanityProjectId = sanityProjectId || 'dev-sandbox-id';
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://myipv4v6.com',
@@ -22,7 +40,7 @@ export default defineConfig({
       filter: (page) => !page.includes('/api/') && !page.includes('/studio'),
     }),
     sanity({
-      projectId: process.env.PUBLIC_SANITY_PROJECT_ID || 'avfq9cch',
+      projectId: resolvedSanityProjectId,
       dataset: process.env.PUBLIC_SANITY_DATASET || 'production',
       useCdn: false,
       apiVersion: '2025-10-01',

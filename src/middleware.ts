@@ -34,6 +34,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
     );
   } else {
     // Hardened CSP for public pages and tools
+    //
+    // Note on 'unsafe-inline' for script-src & style-src:
+    // Astro v7 statically renders islands and inlines critical anti-FOUC theme detection
+    // scripts in <head> (e.g. reading localStorage before DOM paint) alongside inlined Tailwind v4
+    // stylesheet blocks. Dynamic per-request nonces cannot be injected across prerendered static
+    // pages or without extensive streaming HTML rewrites in Cloudflare Workers.
+    //
+    // Mitigating Controls:
+    // 1. 'frame-ancestors none' and 'X-Frame-Options: DENY' prevent clickjacking.
+    // 2. Strict 'connect-src' restricts all client fetch/XHR traffic strictly to trusted endpoints
+    //    (own origin, Cloudflare DoH, icanhazip, and verified geolocation APIs), mitigating XSS exfiltration.
+    // 3. User input in IP search parameters is strictly validated with isValidIP / cleanIP before rendering.
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set(
       'Content-Security-Policy',

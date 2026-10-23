@@ -1,8 +1,9 @@
 import type { CloudflareGeoData, IPDetails, LookupProviderConfig, SupportedProvider } from '../types/ip';
 import type { CloudflareKVNamespace } from '../env';
-import { cleanIP, getIPVersion, isPrivateIP, isValidIP } from './ip.ts';
+import { cleanIP, getIPVersion, isPrivateIP, isValidIP, maskIP } from './ip.ts';
 import { countryCodeToEmoji, getLocalTime } from './geo.ts';
 import { resolveReverseDNS } from './dns.ts';
+import { logger } from './logger.ts';
 
 const memoryCache = new Map<string, { data: IPDetails; expiresAt: number }>();
 const MAX_ENRICHMENT_CACHE_SIZE = 1000;
@@ -26,13 +27,22 @@ function pruneEnrichmentCache(now: number): void {
 
 /**
  * Checks if IP details contain real, valid data suitable for caching.
- * Prevents failed network queries and empty fallback placeholders from poisoning KV cache.
+ * Prevents failed network queries and empty fallback placeholders from poisoning KV or memory cache.
  */
-function isCacheable(details: IPDetails | null | undefined): boolean {
+export function isCacheable(details: IPDetails | null | undefined): boolean {
   if (!details || details.source === 'fallback') return false;
   if (!details.country) return false;
   const c = details.country.toLowerCase();
-  if (c.includes('failed') || c.includes('unavailable') || c === 'unknown' || c === 'lookup unavailable') {
+  if (
+    c.includes('failed') ||
+    c.includes('unavailable') ||
+    c === 'unknown' ||
+    c === 'lookup unavailable' ||
+    c.includes('invalid')
+  ) {
+    return false;
+  }
+  if (details.isp && details.isp.toLowerCase().includes('unknown provider')) {
     return false;
   }
   return true;
@@ -40,7 +50,15 @@ function isCacheable(details: IPDetails | null | undefined): boolean {
 
 /**
  * Enriches an IP address with geolocation, ASN, ISP, reverse DNS, and network data.
- * Pure HTTPS only. Caches results in Cloudflare KV (24 hours).
+ *
+ * Architecture & Caching Strategy:
+ * - 24-Hour Cache TTL: Successful enrichment results are cached in Cloudflare KV (expirationTtl: 86400s)
+ *   and in edge memory (1 hour) to minimize latency and third-party API consumption.
+ * - Multi-Provider Fallback Order:
+ *   1) Configured Provider (Default: 'ipwhois' via HTTPS)
+ *   2) ipwhois (if configured provider was ipinfo or ip-api and failed)
+ *   3) ipinfo (free tier or token fallback)
+ *   4) Graceful fallback with Authoritative Reverse DNS (DoH) if all external providers fail.
  */
 export async function enrichIP(
   rawIP: string,
@@ -60,7 +78,7 @@ export async function enrichIP(
     return createEmptyDetails(ip, version, 'Invalid IP address format');
   }
 
-  // Handle Private / Bogon / Loopback IPs
+  // Handle Private / Bogon / Loopback IPs immediately without outbound API calls
   if (isPrivateIP(ip)) {
     return {
       ip,
@@ -116,7 +134,7 @@ export async function enrichIP(
     const lat = typeof cf.latitude === 'string' ? parseFloat(cf.latitude) : cf.latitude;
     const lon = typeof cf.longitude === 'string' ? parseFloat(cf.longitude) : cf.longitude;
 
-    // Resolve authoritative reverse DNS via DoH concurrently
+    // Resolve authoritative reverse DNS via Cloudflare DoH concurrently
     const rDnsPromise = resolveReverseDNS(ip);
 
     const details: IPDetails = {
@@ -153,11 +171,6 @@ export async function enrichIP(
   }
 
   // 4. Reliable multi-provider fallback for arbitrary/non-visitor lookups
-  // Order:
-  // 1) configured provider (default: ipwhois)
-  // 2) if that fails -> ipwhois (if not already tried)
-  // 3) if that fails -> ipinfo (token optional; free tier without token as last resort)
-  // 4) if that fails -> createEmptyDetails with message 'Network query failed'
   const configuredProvider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
   let details: IPDetails | null = null;
 
@@ -170,7 +183,11 @@ export async function enrichIP(
       details = await fetchFromIpWhois(ip);
     }
   } catch (err: any) {
-    console.error(`[Enrichment Error] Provider ${configuredProvider} failed for ${maskIP(ip)}:`, err?.message || err);
+    logger.error('enrichment_primary_failed', {
+      provider: configuredProvider,
+      ip,
+      error: err?.message || String(err),
+    });
   }
 
   // Secondary fallback: ipwhois if not already tried
@@ -178,7 +195,11 @@ export async function enrichIP(
     try {
       details = await fetchFromIpWhois(ip);
     } catch (err: any) {
-      console.warn(`[Enrichment Fallback] ipwhois failed for ${maskIP(ip)}:`, err?.message || err);
+      logger.warn('enrichment_secondary_ipwhois_failed', {
+        provider: 'ipwhois',
+        ip,
+        error: err?.message || String(err),
+      });
     }
   }
 
@@ -187,7 +208,11 @@ export async function enrichIP(
     try {
       details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
     } catch (err: any) {
-      console.warn(`[Enrichment Fallback] ipinfo failed for ${maskIP(ip)}:`, err?.message || err);
+      logger.warn('enrichment_tertiary_ipinfo_failed', {
+        provider: 'ipinfo',
+        ip,
+        error: err?.message || String(err),
+      });
     }
   }
 
@@ -209,7 +234,7 @@ export async function enrichIP(
     return details;
   }
 
-  // 6. If all external providers fail, still attempt reverse DNS so we have some diagnostic data
+  // 6. If all external providers fail, still attempt reverse DNS so we have diagnostic data
   let fallbackHostname: string | undefined;
   try {
     fallbackHostname = await resolveReverseDNS(ip);
@@ -245,13 +270,17 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`[Enrichment] ipwhois returned HTTP ${res.status} for ${maskIP(ip)}`);
+      logger.warn('ipwhois_http_status_error', { provider: 'ipwhois', ip, status: res.status });
       return null;
     }
 
     const data: any = await res.json();
     if (!data || data.success === false) {
-      console.warn(`[Enrichment] ipwhois returned success=false for ${maskIP(ip)}: ${data?.message || 'unknown'}`);
+      logger.warn('ipwhois_response_unsuccessful', {
+        provider: 'ipwhois',
+        ip,
+        message: data?.message || 'unknown',
+      });
       return null;
     }
 
@@ -282,7 +311,11 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
     };
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.warn(`[Enrichment] ipwhois fetch error for ${maskIP(ip)}:`, err?.message || err);
+    logger.warn('ipwhois_network_exception', {
+      provider: 'ipwhois',
+      ip,
+      error: err?.message || String(err),
+    });
     return null;
   }
 }
@@ -308,13 +341,18 @@ async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | n
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`[Enrichment] ip-api pro returned HTTP ${res.status} for ${maskIP(ip)}`);
+      logger.warn('ip_api_pro_http_status_error', { provider: 'ip-api', ip, status: res.status });
       return null;
     }
 
     const data: any = await res.json();
     if (!data || data.status !== 'success') {
-      console.warn(`[Enrichment] ip-api pro returned status=${data?.status} for ${maskIP(ip)}: ${data?.message || 'unknown'}`);
+      logger.warn('ip_api_pro_response_unsuccessful', {
+        provider: 'ip-api',
+        ip,
+        status: data?.status,
+        message: data?.message || 'unknown',
+      });
       return null;
     }
 
@@ -342,7 +380,11 @@ async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | n
     };
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.warn(`[Enrichment] ip-api pro fetch error for ${maskIP(ip)}:`, err?.message || err);
+    logger.warn('ip_api_pro_network_exception', {
+      provider: 'ip-api',
+      ip,
+      error: err?.message || String(err),
+    });
     return null;
   }
 }
@@ -370,7 +412,7 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`[Enrichment] ipinfo returned HTTP ${res.status} for ${maskIP(ip)}`);
+      logger.warn('ipinfo_http_status_error', { provider: 'ipinfo', ip, status: res.status });
       return null;
     }
 
@@ -406,7 +448,11 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
     };
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.warn(`[Enrichment] ipinfo fetch error for ${maskIP(ip)}:`, err?.message || err);
+    logger.warn('ipinfo_network_exception', {
+      provider: 'ipinfo',
+      ip,
+      error: err?.message || String(err),
+    });
     return null;
   }
 }
@@ -445,18 +491,4 @@ function createEmptyDetails(ip: string, version: 'IPv4' | 'IPv6', message?: stri
   };
 }
 
-/**
- * Masks an IP address for structured observability without storing raw visitor IPs.
- * e.g., 198.51.100.42 -> 198.51.xxx.xxx, 2001:db8::1 -> 2001:db8:xxxx:...
- */
-export function maskIP(ip: string): string {
-  if (ip.includes('.')) {
-    const parts = ip.split('.');
-    return parts.length === 4 ? `${parts[0]}.${parts[1]}.xxx.xxx` : 'xxx.xxx.xxx.xxx';
-  }
-  if (ip.includes(':')) {
-    const parts = ip.split(':');
-    return parts.length >= 2 ? `${parts[0]}:${parts[1]}:xxxx:...` : 'xxxx:...';
-  }
-  return 'masked';
-}
+export { maskIP };

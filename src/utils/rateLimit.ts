@@ -6,6 +6,13 @@ import type { CloudflareKVNamespace } from '../env';
 const memoryRateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const MAX_MEMORY_STORE_SIZE = 5000;
 
+export const RATE_LIMIT_TIERS = {
+  OWN_IP: { limit: 60, windowSeconds: 60 },
+  ARBITRARY_LOOKUP: { limit: 30, windowSeconds: 60 },
+  VISITOR: { limit: 60, windowSeconds: 60 },
+  LOOKUP: { limit: 30, windowSeconds: 60 },
+} as const;
+
 function pruneMemoryStore(now: number): void {
   if (memoryRateLimitStore.size > MAX_MEMORY_STORE_SIZE) {
     for (const [key, val] of memoryRateLimitStore.entries()) {
@@ -24,23 +31,27 @@ function pruneMemoryStore(now: number): void {
 }
 
 /**
- * Edge rate limiter with a unified default of 60 requests per 60-second window per client IP.
+ * Edge rate limiter supporting tiered policies:
+ * - Own IP / Homepage: 60 requests per 60-second window per client IP
+ * - Arbitrary Target Lookups: 30 requests per 60-second window per client IP
  *
- * Concurrency Note:
- * Cloudflare KV is an eventually consistent global store. Concurrent requests arriving at
- * different edge PoPs within milliseconds may observe the same counter value before updates
- * propagate. In practice, this provides robust, best-effort edge throttling without requiring
- * expensive single-point transactional locks.
+ * Concurrency & Eventual Consistency Note:
+ * Cloudflare KV is an eventually consistent global distributed store.
+ * Concurrent subrequests hitting different edge PoPs within milliseconds may
+ * observe slight variance before counter updates propagate. This provides
+ * ultra-fast, robust, best-effort edge throttling without incurring single-point
+ * transactional database locks or latency penalties.
  */
 export async function checkRateLimit(
   clientIP: string,
   kv?: CloudflareKVNamespace,
   maxRequests: number = 60,
-  windowSeconds: number = 60
+  windowSeconds: number = 60,
+  tier: string = 'visitor'
 ): Promise<RateLimitResult> {
   const now = Math.floor(Date.now() / 1000);
   const windowIndex = Math.floor(now / windowSeconds);
-  const windowKey = `ratelimit:${clientIP}:${windowIndex}`;
+  const windowKey = `ratelimit:${tier}:${clientIP}:${windowIndex}`;
   const reset = (windowIndex + 1) * windowSeconds;
 
   if (kv) {
@@ -76,11 +87,12 @@ export async function checkRateLimit(
 
   // Fallback in-memory rate limiting
   pruneMemoryStore(now);
-  const existing = memoryRateLimitStore.get(clientIP);
+  const memoryKey = `${tier}:${clientIP}`;
+  const existing = memoryRateLimitStore.get(memoryKey);
 
   if (!existing || now >= existing.resetAt) {
     const resetAt = now + windowSeconds;
-    memoryRateLimitStore.set(clientIP, { count: 1, resetAt });
+    memoryRateLimitStore.set(memoryKey, { count: 1, resetAt });
     return {
       allowed: true,
       limit: maxRequests,

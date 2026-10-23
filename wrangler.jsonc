@@ -13,12 +13,9 @@
   },
   "kv_namespaces": [
     {
+      // Primary Cloudflare KV namespace for 24h IP enrichment caching and sliding rate limiting
       "binding": "IP_CACHE",
       "id": "167b4a4e50a645b5866d967541dd12ec"
-    },
-    {
-      "binding": "SESSION",
-      "id": "312a7fbb0b784f3791459fe52a1c18f5"
     }
   ],
   "observability": {

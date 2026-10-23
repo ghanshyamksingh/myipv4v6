@@ -96,8 +96,9 @@ npx wrangler secret put IPINFO_TOKEN
 
 - [ ] **Strict Client IP Trust:**
   - In production behind Cloudflare, `src/utils/ip.ts` trusts exclusively `CF-Connecting-IP`. Spoofed headers like `X-Forwarded-For` are ignored.
-- [ ] **Rate Limits Verified:**
-  - Rate limiting is set to 60 requests per 60-second window per client IP across `/api/ip` and `/ip/[ip]`.
+- [ ] **Tiered Rate Limits Verified:**
+  - Visitor own IP: 60 requests per 60-second window (`/` and `/api/ip`).
+  - Arbitrary target lookups: Stricter 30 requests per 60-second window (`/ip/[ip]` and `/api/ip?q=<ip>`).
   - Proper `X-RateLimit-*` and `Retry-After: 60` headers returned upon 429 status.
 - [ ] **Content Security Policy (CSP):**
   - Verify CSP headers on public pages: blocks unauthorized frame embedding (`frame-ancestors 'none'`), disallows untrusted scripts, and whitelists OpenStreetMap and icanhazip.
@@ -106,12 +107,13 @@ npx wrangler secret put IPINFO_TOKEN
 
 ## 6. Privacy & Legal Compliance
 
-- [ ] **Zero-Logging Verification:**
-  - Verify all visitor IP processing occurs in volatile RAM memory at the edge node.
-  - Verify no databases or logging streams persist visitor IP addresses.
-  - In-memory debug logs redact visitor IPs (`xxx.xxx.xxx.xxx` / `xxxx:xxxx:...`).
+- [ ] **Edge Privacy Verification:**
+  - Verify visitor IP processing occurs exclusively in volatile RAM memory at the edge node.
+  - Enrichment results (including the looked-up IP) are cached for up to 24 hours in Cloudflare KV solely for performance, with no link to user identities.
+  - Structured application logs redact visitor IPs (`xxx.xxx.xxx.xxx` / `xxxx:xxxx:...`).
+  - Recent search history is stored exclusively in client-side browser `localStorage`.
 - [ ] **Review Privacy Policy:**
-  - Verify `/privacy` matches actual operational behavior (ephemeral edge RAM, Cloudflare reverse proxy transparency, third-party provider HTTPS lookup notes).
+  - Verify `/privacy` accurately reflects edge RAM processing, Cloudflare reverse proxy transparency, and third-party lookup providers (`ipwho.is` default, `ipinfo.io`, `pro.ip-api.com`).
 - [ ] **Review Terms of Service:**
   - Verify `/terms` acceptable use policy, API rate limit guidelines, and disclaimer of warranty.
 

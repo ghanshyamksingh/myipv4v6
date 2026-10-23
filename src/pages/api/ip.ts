@@ -13,6 +13,7 @@ export const GET: APIRoute = async ({ request }) => {
   const acceptHeader = request.headers.get('accept') || '';
 
   const clientIP = getClientIP(request);
+  const isLookup = Boolean(queryParam);
   const targetIP = queryParam ? cleanIP(queryParam) : clientIP;
 
   const cfEnv = await getCloudflareEnv();
@@ -22,8 +23,10 @@ export const GET: APIRoute = async ({ request }) => {
   const ipinfoToken = cfEnv.IPINFO_TOKEN;
   const ipApiKey = cfEnv.IP_API_KEY;
 
-  // Rate Limiting (60 requests per 60s per client IP)
-  const rateLimit = await checkRateLimit(clientIP, kv, 60, 60);
+  // Tiered Rate Limiting: 60 req/min for own IP detection, 30 req/min for arbitrary lookups
+  const tier = isLookup ? 'lookup' : 'visitor';
+  const maxRequests = isLookup ? 30 : 60;
+  const rateLimit = await checkRateLimit(clientIP, kv, maxRequests, 60, tier);
   const rateLimitHeaders = {
     ...getRateLimitHeaders(rateLimit),
     'Access-Control-Allow-Origin': '*',
