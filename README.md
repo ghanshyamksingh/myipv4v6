@@ -14,7 +14,7 @@ Built with **Astro 7**, **Tailwind CSS v4**, **Cloudflare Workers/Pages**, and *
 - **One-Click Share & Developer Export:** Instant clipboard copy, native Web Share API, plus one-click export of lookup reports in JSON and Markdown formats.
 - **Fast Dynamic Lookup (`/ip/[ip]`):** Query any public IPv4 or IPv6 address with multi-tier enrichment and Cloudflare KV 24-hour edge caching.
 - **Client-Side Private Search History:** Recent lookups are saved exclusively in browser `localStorage` and never transmitted to our servers.
-- **Developer-Friendly API (`/api/ip` & `/api/v1/ip`):** Returns JSON (`curl https://myipv4v6.com/api/ip`) or plain text (`curl -H "Accept: text/plain" https://myipv4v6.com/api/ip` or `?format=text`) with rate limiting and CORS support.
+- **Developer-Friendly API (`/api/ip` & `/api/v1/ip`):** Returns JSON (`curl https://myipv4v6.com/api/ip`) or plain text (`curl -H "Accept: text/plain" https://myipv4v6.com/api/ip` or `?format=text`) with tiered rate limiting (visitor's own IP: 60 requests / 60 s; arbitrary lookups: 30 requests / 60 s) and CORS support.
 - **Strict Edge Privacy Architecture:** Visitor IP addresses are processed only in volatile edge memory. Enrichment results (including the looked-up IP) may be cached for up to 24 hours in Cloudflare KV solely for performance. We do not retain visitor IPs in any long-term database, analytics pipeline, or third-party tracker.
 - **Security & Headers Hardening:** Strict Content Security Policy (CSP), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and anti-clickjacking headers via edge middleware.
 - **Embedded Sanity CMS Studio (`/studio`):** Manage blog posts, static pages, FAQs, and SEO metadata directly from the integrated studio.
@@ -48,7 +48,7 @@ In local development (running `pnpm dev` or `astro dev`):
 In production:
 - The system strictly trusts only the `CF-Connecting-IP` header set by Cloudflare's edge proxy; spoofable headers like `X-Forwarded-For` are ignored.
 - KV bindings (`IP_CACHE`) cache enrichment responses for 24 hours.
-- Ephemeral rate limits (60 req/min) are counted across edge memory / KV.
+- Ephemeral tiered rate limits (visitor's own IP: 60 requests / 60 s; arbitrary lookups: 30 requests / 60 s) are counted across edge memory / KV.
 
 ---
 

@@ -7,8 +7,6 @@ const memoryRateLimitStore = new Map<string, { count: number; resetAt: number }>
 const MAX_MEMORY_STORE_SIZE = 5000;
 
 export const RATE_LIMIT_TIERS = {
-  OWN_IP: { limit: 60, windowSeconds: 60 },
-  ARBITRARY_LOOKUP: { limit: 30, windowSeconds: 60 },
   VISITOR: { limit: 60, windowSeconds: 60 },
   LOOKUP: { limit: 30, windowSeconds: 60 },
 } as const;

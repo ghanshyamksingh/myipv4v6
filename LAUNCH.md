@@ -36,7 +36,7 @@ Set the following environment variables in the Cloudflare Dashboard (**Workers &
 | :--- | :--- | :--- |
 | `PUBLIC_SITE_URL` | Plaintext | `https://myipv4v6.com` |
 | `IP_PROVIDER` | Plaintext | `ipwhois` *(Default free HTTPS, no token required)* |
-| `PUBLIC_SANITY_PROJECT_ID` | Plaintext | Your Sanity Project ID (e.g. from manage.sanity.io) |
+| `PUBLIC_SANITY_PROJECT_ID` | Plaintext | Required in production (from manage.sanity.io; builds fail-closed if omitted) |
 | `PUBLIC_SANITY_DATASET` | Plaintext | `production` |
 | `IPINFO_TOKEN` | Secret *(Optional)* | Required only if `IP_PROVIDER=ipinfo` |
 | `IP_API_KEY` | Secret *(Optional)* | Required only if `IP_PROVIDER=ip-api` (uses pro.ip-api.com HTTPS) |

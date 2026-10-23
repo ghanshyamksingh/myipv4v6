@@ -9,6 +9,49 @@ const memoryCache = new Map<string, { data: IPDetails; expiresAt: number }>();
 const MAX_ENRICHMENT_CACHE_SIZE = 1000;
 const USER_AGENT = 'myipv4v6/1.0 (https://myipv4v6.com; edge lookup)';
 
+// Lightweight isolate-local circuit breaker for external providers
+// Consecutively failed requests trip the breaker to skip a degraded provider during outages
+interface CircuitState {
+  failures: number;
+  openUntil: number;
+}
+const providerCircuits = new Map<SupportedProvider, CircuitState>();
+const CIRCUIT_FAILURE_THRESHOLD = 5;
+const CIRCUIT_COOLDOWN_MS = 30_000;
+
+export function isCircuitOpen(provider: SupportedProvider): boolean {
+  const state = providerCircuits.get(provider);
+  if (!state) return false;
+  if (Date.now() < state.openUntil) {
+    return true;
+  }
+  // Cooldown elapsed: half-open, allow trial request
+  return false;
+}
+
+export function recordProviderSuccess(provider: SupportedProvider): void {
+  providerCircuits.delete(provider);
+}
+
+export function recordProviderFailure(provider: SupportedProvider): void {
+  const now = Date.now();
+  const state = providerCircuits.get(provider) || { failures: 0, openUntil: 0 };
+  state.failures += 1;
+  if (state.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+    state.openUntil = now + CIRCUIT_COOLDOWN_MS;
+    logger.warn('provider_circuit_breaker_opened', {
+      provider,
+      consecutiveFailures: state.failures,
+      cooldownSeconds: CIRCUIT_COOLDOWN_MS / 1000,
+    });
+  }
+  providerCircuits.set(provider, state);
+}
+
+export function resetCircuitBreakers(): void {
+  providerCircuits.clear();
+}
+
 function pruneEnrichmentCache(now: number): void {
   if (memoryCache.size > MAX_ENRICHMENT_CACHE_SIZE) {
     for (const [key, val] of memoryCache.entries()) {
@@ -170,31 +213,49 @@ export async function enrichIP(
     return details;
   }
 
-  // 4. Reliable multi-provider fallback for arbitrary/non-visitor lookups
+  // 4. Reliable multi-provider fallback with isolate-local circuit breaker
   const configuredProvider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
   let details: IPDetails | null = null;
 
-  try {
-    if (configuredProvider === 'ipinfo') {
-      details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
-    } else if (configuredProvider === 'ip-api' && options?.providerConfig?.ipApiKey) {
-      details = await fetchFromIpApiPro(ip, options.providerConfig.ipApiKey);
-    } else {
-      details = await fetchFromIpWhois(ip);
+  // Primary attempt (if circuit is closed)
+  if (!isCircuitOpen(configuredProvider)) {
+    try {
+      if (configuredProvider === 'ipinfo') {
+        details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
+      } else if (configuredProvider === 'ip-api' && options?.providerConfig?.ipApiKey) {
+        details = await fetchFromIpApiPro(ip, options.providerConfig.ipApiKey);
+      } else {
+        details = await fetchFromIpWhois(ip);
+      }
+
+      if (details) {
+        recordProviderSuccess(configuredProvider);
+      } else {
+        recordProviderFailure(configuredProvider);
+      }
+    } catch (err: any) {
+      recordProviderFailure(configuredProvider);
+      logger.error('enrichment_primary_failed', {
+        provider: configuredProvider,
+        ip,
+        error: err?.message || String(err),
+      });
     }
-  } catch (err: any) {
-    logger.error('enrichment_primary_failed', {
-      provider: configuredProvider,
-      ip,
-      error: err?.message || String(err),
-    });
+  } else {
+    logger.info('circuit_breaker_skipping_primary', { provider: configuredProvider });
   }
 
-  // Secondary fallback: ipwhois if not already tried
-  if (!details && configuredProvider !== 'ipwhois') {
+  // Secondary fallback: ipwhois if not already tried and circuit is closed
+  if (!details && configuredProvider !== 'ipwhois' && !isCircuitOpen('ipwhois')) {
     try {
       details = await fetchFromIpWhois(ip);
+      if (details) {
+        recordProviderSuccess('ipwhois');
+      } else {
+        recordProviderFailure('ipwhois');
+      }
     } catch (err: any) {
+      recordProviderFailure('ipwhois');
       logger.warn('enrichment_secondary_ipwhois_failed', {
         provider: 'ipwhois',
         ip,
@@ -203,11 +264,17 @@ export async function enrichIP(
     }
   }
 
-  // Tertiary fallback: ipinfo (free tier or token)
-  if (!details && configuredProvider !== 'ipinfo') {
+  // Tertiary fallback: ipinfo (free tier or token) if not already tried and circuit is closed
+  if (!details && configuredProvider !== 'ipinfo' && !isCircuitOpen('ipinfo')) {
     try {
       details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
+      if (details) {
+        recordProviderSuccess('ipinfo');
+      } else {
+        recordProviderFailure('ipinfo');
+      }
     } catch (err: any) {
+      recordProviderFailure('ipinfo');
       logger.warn('enrichment_tertiary_ipinfo_failed', {
         provider: 'ipinfo',
         ip,

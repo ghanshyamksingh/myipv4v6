@@ -15,7 +15,14 @@ import {
   getRateLimitHeaders,
   RATE_LIMIT_TIERS,
 } from '../src/utils/rateLimit.ts';
-import { enrichIP, isCacheable } from '../src/utils/enrichment.ts';
+import {
+  enrichIP,
+  isCacheable,
+  isCircuitOpen,
+  recordProviderFailure,
+  recordProviderSuccess,
+  resetCircuitBreakers,
+} from '../src/utils/enrichment.ts';
 import type { IPDetails } from '../src/types/ip.ts';
 
 describe('IP Utilities Test Suite', () => {
@@ -477,7 +484,34 @@ describe('IP Utilities Test Suite', () => {
         assert.equal(res.city, 'Paris');
       } finally {
         globalThis.fetch = originalFetch;
+        resetCircuitBreakers();
       }
+    });
+  });
+
+  describe('Provider Circuit-Breaker Resilience', () => {
+    it('opens circuit after consecutive failures and resets upon success', () => {
+      resetCircuitBreakers();
+      assert.equal(isCircuitOpen('ipwhois'), false);
+
+      // Record 5 failures to trip breaker
+      for (let i = 0; i < 5; i++) {
+        recordProviderFailure('ipwhois');
+      }
+      assert.equal(isCircuitOpen('ipwhois'), true);
+
+      // Record success resets the circuit
+      recordProviderSuccess('ipwhois');
+      assert.equal(isCircuitOpen('ipwhois'), false);
+    });
+
+    it('resetCircuitBreakers clears all provider circuit states', () => {
+      for (let i = 0; i < 5; i++) {
+        recordProviderFailure('ipinfo');
+      }
+      assert.equal(isCircuitOpen('ipinfo'), true);
+      resetCircuitBreakers();
+      assert.equal(isCircuitOpen('ipinfo'), false);
     });
   });
 });

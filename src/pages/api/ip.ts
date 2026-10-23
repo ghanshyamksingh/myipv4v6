@@ -3,7 +3,7 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { cleanIP, getClientIP, isValidIP } from '../../utils/ip';
 import { enrichIP } from '../../utils/enrichment';
-import { checkRateLimit, getRateLimitHeaders } from '../../utils/rateLimit';
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMIT_TIERS } from '../../utils/rateLimit';
 import { getCloudflareEnv, getCloudflareGeo } from '../../utils/cloudflare';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -24,9 +24,15 @@ export const GET: APIRoute = async ({ request }) => {
   const ipApiKey = cfEnv.IP_API_KEY;
 
   // Tiered Rate Limiting: 60 req/min for own IP detection, 30 req/min for arbitrary lookups
+  const tierConfig = isLookup ? RATE_LIMIT_TIERS.LOOKUP : RATE_LIMIT_TIERS.VISITOR;
   const tier = isLookup ? 'lookup' : 'visitor';
-  const maxRequests = isLookup ? 30 : 60;
-  const rateLimit = await checkRateLimit(clientIP, kv, maxRequests, 60, tier);
+  const rateLimit = await checkRateLimit(
+    clientIP,
+    kv,
+    tierConfig.limit,
+    tierConfig.windowSeconds,
+    tier
+  );
   const rateLimitHeaders = {
     ...getRateLimitHeaders(rateLimit),
     'Access-Control-Allow-Origin': '*',

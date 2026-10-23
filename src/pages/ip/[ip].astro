@@ -10,7 +10,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
 import { cleanIP, isValidIP, getClientIP } from '../../utils/ip';
 import { enrichIP } from '../../utils/enrichment';
-import { checkRateLimit, getRateLimitHeaders } from '../../utils/rateLimit';
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMIT_TIERS } from '../../utils/rateLimit';
 import { getFAQs } from '../../utils/sanity';
 import { getCloudflareEnv } from '../../utils/cloudflare';
 import type { IPDetails } from '../../types/ip';
@@ -27,7 +27,13 @@ const ipinfoToken = cfEnv.IPINFO_TOKEN;
 const ipApiKey = cfEnv.IP_API_KEY;
 
 // Rate limiting check: Stricter tier for arbitrary lookups (30 requests per 60s per client IP)
-const rateLimit = await checkRateLimit(clientIP, kv, 30, 60, 'lookup');
+const rateLimit = await checkRateLimit(
+  clientIP,
+  kv,
+  RATE_LIMIT_TIERS.LOOKUP.limit,
+  RATE_LIMIT_TIERS.LOOKUP.windowSeconds,
+  'lookup'
+);
 
 // Set rate limit headers
 const rateHeaders = getRateLimitHeaders(rateLimit);
