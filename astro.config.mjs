@@ -22,7 +22,7 @@ export default defineConfig({
       filter: (page) => !page.includes('/api/') && !page.includes('/studio'),
     }),
     sanity({
-      projectId: process.env.PUBLIC_SANITY_PROJECT_ID || 'your-project-id',
+      projectId: process.env.PUBLIC_SANITY_PROJECT_ID || 'avfq9cch',
       dataset: process.env.PUBLIC_SANITY_DATASET || 'production',
       useCdn: false,
       apiVersion: '2025-10-01',
