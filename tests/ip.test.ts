@@ -10,6 +10,7 @@ import {
   getClientIP,
 } from '../src/utils/ip.ts';
 import { checkRateLimit, getRateLimitHeaders } from '../src/utils/rateLimit.ts';
+import { enrichIP } from '../src/utils/enrichment.ts';
 
 describe('IP Utilities Test Suite', () => {
   describe('IPv4 Validation & Detection', () => {
@@ -139,6 +140,31 @@ describe('IP Utilities Test Suite', () => {
       const overLimit = await checkRateLimit(testIP, undefined, 3, 60);
       assert.equal(overLimit.allowed, false);
       assert.equal(overLimit.remaining, 0);
+    });
+  });
+
+  describe('Enrichment and Fallback Provider Logic', () => {
+    it('handles private IPs instantly without network requests', async () => {
+      const res = await enrichIP('192.168.1.1');
+      assert.equal(res.isPrivate, true);
+      assert.equal(res.country, 'Private Network');
+      assert.equal(res.source, 'fallback');
+    });
+
+    it('rejects invalid IP format gracefully', async () => {
+      const res = await enrichIP('999.999.999.999');
+      assert.equal(res.country, 'Invalid IP address format');
+      assert.equal(res.source, 'fallback');
+    });
+
+    it('enriches public IP 8.8.8.8 with real data and source ipwhois or ipinfo', async () => {
+      const res = await enrichIP('8.8.8.8');
+      assert.equal(res.ip, '8.8.8.8');
+      assert.equal(res.version, 'IPv4');
+      assert.equal(res.isPrivate, false);
+      assert.ok(['ipwhois', 'ipinfo'].includes(res.source), `Expected ipwhois or ipinfo, got ${res.source}`);
+      assert.ok(res.country && res.country !== 'Network query failed', 'Expected real country');
+      assert.ok(res.isp && res.isp !== 'Unknown Provider', 'Expected real ISP');
     });
   });
 });

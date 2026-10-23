@@ -1,11 +1,12 @@
 import type { CloudflareGeoData, IPDetails, LookupProviderConfig, SupportedProvider } from '../types/ip';
 import type { CloudflareKVNamespace } from '../env';
-import { cleanIP, getIPVersion, isPrivateIP, isValidIP } from './ip';
-import { countryCodeToEmoji, getLocalTime } from './geo';
-import { resolveReverseDNS } from './dns';
+import { cleanIP, getIPVersion, isPrivateIP, isValidIP } from './ip.ts';
+import { countryCodeToEmoji, getLocalTime } from './geo.ts';
+import { resolveReverseDNS } from './dns.ts';
 
 const memoryCache = new Map<string, { data: IPDetails; expiresAt: number }>();
 const MAX_ENRICHMENT_CACHE_SIZE = 1000;
+const USER_AGENT = 'myipv4v6/1.0 (https://myipv4v6.com; edge lookup)';
 
 function pruneEnrichmentCache(now: number): void {
   if (memoryCache.size > MAX_ENRICHMENT_CACHE_SIZE) {
@@ -21,6 +22,20 @@ function pruneEnrichmentCache(now: number): void {
       }
     }
   }
+}
+
+/**
+ * Checks if IP details contain real, valid data suitable for caching.
+ * Prevents failed network queries and empty fallback placeholders from poisoning KV cache.
+ */
+function isCacheable(details: IPDetails | null | undefined): boolean {
+  if (!details || details.source === 'fallback') return false;
+  if (!details.country) return false;
+  const c = details.country.toLowerCase();
+  if (c.includes('failed') || c.includes('unavailable') || c === 'unknown' || c === 'lookup unavailable') {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -71,17 +86,17 @@ export async function enrichIP(
   const cacheKey = `ip:${ip}`;
   const now = Date.now();
 
-  // 1. Check in-memory cache
+  // 1. Check in-memory cache (only accept valid non-poisoned entries)
   const memoryHit = memoryCache.get(cacheKey);
-  if (memoryHit && now < memoryHit.expiresAt) {
+  if (memoryHit && now < memoryHit.expiresAt && isCacheable(memoryHit.data)) {
     return { ...memoryHit.data, source: 'cache' };
   }
 
-  // 2. Check Cloudflare KV cache
+  // 2. Check Cloudflare KV cache (only accept valid non-poisoned entries)
   if (options?.kv) {
     try {
       const cached = await options.kv.get(cacheKey, { type: 'json' });
-      if (cached && typeof cached === 'object' && cached.ip) {
+      if (cached && typeof cached === 'object' && cached.ip && isCacheable(cached)) {
         pruneEnrichmentCache(now);
         memoryCache.set(cacheKey, { data: cached, expiresAt: now + 3600 * 1000 });
         return {
@@ -137,39 +152,56 @@ export async function enrichIP(
     return details;
   }
 
-  // 4. External Enrichment Provider (Default: ipwhois, 100% HTTPS)
-  const provider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
+  // 4. Reliable multi-provider fallback for arbitrary/non-visitor lookups
+  // Order:
+  // 1) configured provider (default: ipwhois)
+  // 2) if that fails -> ipwhois (if not already tried)
+  // 3) if that fails -> ipinfo (token optional; free tier without token as last resort)
+  // 4) if that fails -> createEmptyDetails with message 'Network query failed'
+  const configuredProvider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
   let details: IPDetails | null = null;
 
   try {
-    if (provider === 'ipinfo') {
+    if (configuredProvider === 'ipinfo') {
       details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
-    } else if (provider === 'ip-api' && options?.providerConfig?.ipApiKey) {
+    } else if (configuredProvider === 'ip-api' && options?.providerConfig?.ipApiKey) {
       details = await fetchFromIpApiPro(ip, options.providerConfig.ipApiKey);
     } else {
-      // Default to ipwhois (free, 100% HTTPS, reliable)
       details = await fetchFromIpWhois(ip);
     }
-  } catch (err) {
-    // Structured error logging without logging full visitor IP (protecting privacy)
-    console.error(`[Enrichment Error] Provider ${provider} failed for masked IP ${maskIP(ip)}:`, err);
+  } catch (err: any) {
+    console.error(`[Enrichment Error] Provider ${configuredProvider} failed for ${maskIP(ip)}:`, err?.message || err);
+  }
+
+  // Secondary fallback: ipwhois if not already tried
+  if (!details && configuredProvider !== 'ipwhois') {
     try {
       details = await fetchFromIpWhois(ip);
-    } catch {
-      details = null;
+    } catch (err: any) {
+      console.warn(`[Enrichment Fallback] ipwhois failed for ${maskIP(ip)}:`, err?.message || err);
+    }
+  }
+
+  // Tertiary fallback: ipinfo (free tier or token)
+  if (!details && configuredProvider !== 'ipinfo') {
+    try {
+      details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
+    } catch (err: any) {
+      console.warn(`[Enrichment Fallback] ipinfo failed for ${maskIP(ip)}:`, err?.message || err);
     }
   }
 
   // 5. Ensure Authoritative Reverse DNS is resolved if missing
-  if (details && !details.hostname) {
-    try {
-      details.hostname = await resolveReverseDNS(ip);
-    } catch {
-      // Continue without reverse DNS
-    }
-  }
-
   if (details) {
+    if (!details.hostname) {
+      try {
+        const rDns = await resolveReverseDNS(ip);
+        if (rDns) details.hostname = rDns;
+      } catch {
+        // Reverse DNS resolution is best-effort
+      }
+    }
+
     details.userAgent = options?.userAgent;
     details.httpProtocol = options?.protocol;
     details.localTime = getLocalTime(details.timezone);
@@ -177,49 +209,80 @@ export async function enrichIP(
     return details;
   }
 
-  // Fallback if network is unreachable
-  return createEmptyDetails(ip, version, 'Network query failed');
+  // 6. If all external providers fail, still attempt reverse DNS so we have some diagnostic data
+  let fallbackHostname: string | undefined;
+  try {
+    fallbackHostname = await resolveReverseDNS(ip);
+  } catch {
+    // Continue without hostname
+  }
+
+  const empty = createEmptyDetails(ip, version, 'Network query failed');
+  if (fallbackHostname) {
+    empty.hostname = fallbackHostname;
+  }
+  empty.userAgent = options?.userAgent;
+  empty.httpProtocol = options?.protocol;
+  return empty;
 }
 
 /**
  * Free HTTPS Provider: ipwho.is (Zero auth required, 100% SSL)
+ * Hardened with 8000ms timeout and proper Accept / User-Agent headers.
  */
 async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const res = await fetch(`https://ipwho.is/${ip}`, { signal: controller.signal });
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': USER_AGENT,
+      },
+    });
     clearTimeout(timeoutId);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[Enrichment] ipwhois returned HTTP ${res.status} for ${maskIP(ip)}`);
+      return null;
+    }
+
     const data: any = await res.json();
-    if (!data.success) return null;
+    if (!data || data.success === false) {
+      console.warn(`[Enrichment] ipwhois returned success=false for ${maskIP(ip)}: ${data?.message || 'unknown'}`);
+      return null;
+    }
+
+    const lat = typeof data.latitude === 'number' ? data.latitude : undefined;
+    const lon = typeof data.longitude === 'number' ? data.longitude : undefined;
 
     return {
       ip: data.ip || ip,
       version: getIPVersion(ip) || 'IPv4',
       isPrivate: false,
-      country: data.country,
+      country: data.country || 'Unknown',
       countryCode: data.country_code,
       flagEmoji: data.flag?.emoji || countryCodeToEmoji(data.country_code),
       region: data.region,
       regionCode: data.region_code,
       city: data.city,
       postalCode: data.postal,
-      latitude: data.latitude,
-      longitude: data.longitude,
+      latitude: lat,
+      longitude: lon,
       timezone: data.timezone?.id,
       asn: data.connection?.asn ? `AS${data.connection.asn}` : undefined,
       asOrganization: data.connection?.org,
-      isp: data.connection?.isp || data.connection?.org,
+      isp: data.connection?.isp || data.connection?.org || 'Unknown Provider',
       org: data.connection?.org,
       hostname: data.connection?.domain,
       source: 'ipwhois',
       cachedAt: Date.now(),
     };
-  } catch {
+  } catch (err: any) {
     clearTimeout(timeoutId);
+    console.warn(`[Enrichment] ipwhois fetch error for ${maskIP(ip)}:`, err?.message || err);
     return null;
   }
 }
@@ -229,18 +292,31 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
  */
 async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | null> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
     const res = await fetch(
-      `https://pro.ip-api.com/json/${ip}?key=${encodeURIComponent(key)}&fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,reverse,query`,
-      { signal: controller.signal }
+      `https://pro.ip-api.com/json/${encodeURIComponent(ip)}?key=${encodeURIComponent(key)}&fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,reverse,query`,
+      {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': USER_AGENT,
+        },
+      }
     );
     clearTimeout(timeoutId);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[Enrichment] ip-api pro returned HTTP ${res.status} for ${maskIP(ip)}`);
+      return null;
+    }
+
     const data: any = await res.json();
-    if (data.status !== 'success') return null;
+    if (!data || data.status !== 'success') {
+      console.warn(`[Enrichment] ip-api pro returned status=${data?.status} for ${maskIP(ip)}: ${data?.message || 'unknown'}`);
+      return null;
+    }
 
     return {
       ip: data.query || ip,
@@ -253,8 +329,8 @@ async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | n
       regionCode: data.region,
       city: data.city,
       postalCode: data.zip,
-      latitude: data.lat,
-      longitude: data.lon,
+      latitude: typeof data.lat === 'number' ? data.lat : undefined,
+      longitude: typeof data.lon === 'number' ? data.lon : undefined,
       timezone: data.timezone,
       asn: data.as ? data.as.split(' ')[0] : undefined,
       asOrganization: data.as ? data.as.split(' ').slice(1).join(' ') : undefined,
@@ -264,30 +340,44 @@ async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | n
       source: 'ip-api',
       cachedAt: Date.now(),
     };
-  } catch {
+  } catch (err: any) {
     clearTimeout(timeoutId);
+    console.warn(`[Enrichment] ip-api pro fetch error for ${maskIP(ip)}:`, err?.message || err);
     return null;
   }
 }
 
 /**
- * HTTPS Provider: ipinfo.io
+ * HTTPS Provider: ipinfo.io (Free tier without token or authenticated with token)
  */
 async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | null> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const url = new URL(`https://ipinfo.io/${ip}/json`);
+    const url = new URL(`https://ipinfo.io/${encodeURIComponent(ip)}/json`);
     if (token) {
       url.searchParams.set('token', token);
     }
 
-    const res = await fetch(url.toString(), { signal: controller.signal });
+    const res = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': USER_AGENT,
+      },
+    });
     clearTimeout(timeoutId);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[Enrichment] ipinfo returned HTTP ${res.status} for ${maskIP(ip)}`);
+      return null;
+    }
+
     const data: any = await res.json();
+    if (!data || data.bogon) {
+      return null;
+    }
 
     const [latStr, lonStr] = (data.loc || '').split(',');
     const lat = latStr ? parseFloat(latStr) : undefined;
@@ -297,30 +387,35 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
       ip: data.ip || ip,
       version: getIPVersion(ip) || 'IPv4',
       isPrivate: false,
-      country: data.country,
+      country: data.country || 'Unknown',
       countryCode: data.country,
       flagEmoji: countryCodeToEmoji(data.country),
       region: data.region,
       city: data.city,
       postalCode: data.postal,
-      latitude: lat,
-      longitude: lon,
+      latitude: lat && !isNaN(lat) ? lat : undefined,
+      longitude: lon && !isNaN(lon) ? lon : undefined,
       timezone: data.timezone,
       asn: data.org ? data.org.split(' ')[0] : undefined,
       asOrganization: data.org ? data.org.split(' ').slice(1).join(' ') : undefined,
-      isp: data.org,
+      isp: data.org || 'Unknown Provider',
       org: data.org,
       hostname: data.hostname,
       source: 'ipinfo',
       cachedAt: Date.now(),
     };
-  } catch {
+  } catch (err: any) {
     clearTimeout(timeoutId);
+    console.warn(`[Enrichment] ipinfo fetch error for ${maskIP(ip)}:`, err?.message || err);
     return null;
   }
 }
 
 async function saveToCache(key: string, details: IPDetails, kv?: CloudflareKVNamespace): Promise<void> {
+  if (!isCacheable(details)) {
+    return;
+  }
+
   pruneEnrichmentCache(Date.now());
   memoryCache.set(key, { data: details, expiresAt: Date.now() + 3600 * 1000 });
 

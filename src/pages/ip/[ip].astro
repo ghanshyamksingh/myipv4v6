@@ -62,12 +62,18 @@ const breadcrumbItems = [
   { name: targetIP || 'Unknown IP', url: `/ip/${encodeURIComponent(targetIP)}` },
 ];
 
+const isFallback = details?.source === 'fallback' && !details?.isPrivate;
+
 const pageTitle = isValid && details
-  ? `IP Address ${targetIP} - ${details.city || details.country || 'Location'} & ISP Details | myipv4v6.com`
+  ? isFallback
+    ? `IP Address ${targetIP} (${details.version}) - Network Diagnostics | myipv4v6.com`
+    : `IP Address ${targetIP} - ${details.city || details.country || 'Location'} & ISP Details | myipv4v6.com`
   : `Invalid IP Address (${rawParam}) | myipv4v6.com`;
 
 const pageDescription = isValid && details
-  ? `Comprehensive lookup report for IP ${targetIP} (${details.version}): Country: ${details.country}, City: ${details.city || 'N/A'}, ISP: ${details.isp || details.asOrganization || 'N/A'}, ASN: ${details.asn || 'N/A'}. 24h edge cached.`
+  ? isFallback
+    ? `Network lookup report for IP address ${targetIP} (${details.version}). Hostname: ${details.hostname || 'None registered'}. Live reverse DNS and routing diagnostics.`
+    : `Comprehensive lookup report for IP ${targetIP} (${details.version}): Country: ${details.country}, City: ${details.city || 'N/A'}, ISP: ${details.isp || details.asOrganization || 'N/A'}, ASN: ${details.asn || 'N/A'}. 24h edge cached.`
   : `The queried IP address ${rawParam} is not a valid IPv4 or IPv6 address. Test another IP address.`;
 ---
 
@@ -75,11 +81,28 @@ const pageDescription = isValid && details
   title={pageTitle}
   description={pageDescription}
   canonicalUrl={`https://myipv4v6.com/ip/${encodeURIComponent(targetIP)}`}
-  noIndex={!isValid || !rateLimit.allowed}
+  noIndex={!isValid || !rateLimit.allowed || isFallback}
 >
   <div class="max-w-4xl mx-auto w-full flex flex-col gap-8 sm:gap-10">
     <!-- Breadcrumb Navigation -->
     <Breadcrumbs items={breadcrumbItems} />
+
+    <!-- Provider Failure Notification (IP is valid, but external enrichment provider temporarily failed) -->
+    {rateLimit.allowed && isValid && isFallback && (
+      <div class="rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 sm:p-5 flex items-start gap-3.5 text-amber-900 dark:text-amber-200 text-sm shadow-xs">
+        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div class="flex flex-col gap-0.5">
+          <p class="font-bold text-amber-950 dark:text-amber-100">
+            Geolocation provider temporarily unavailable.
+          </p>
+          <p class="text-xs text-amber-800 dark:text-amber-300">
+            The IP address <code class="font-mono font-semibold">{targetIP}</code> is valid; try again shortly. Authoritative reverse DNS and network diagnostic tools below remain functional.
+          </p>
+        </div>
+      </div>
+    )}
 
     {!rateLimit.allowed && (
       <div class="rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-8 text-center flex flex-col items-center gap-4">

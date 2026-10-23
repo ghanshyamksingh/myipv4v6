@@ -14,11 +14,22 @@ const shareUrl = `https://myipv4v6.com/ip/${encodeURIComponent(details.ip)}`;
 
 // Prepare serialized JSON and Markdown for one-click developer export
 const jsonExport = JSON.stringify(details, null, 2);
+const exportLocation =
+  details.source === 'fallback' && !details.isPrivate
+    ? 'Location data temporarily unavailable'
+    : [details.city, details.region, details.country].filter(Boolean).join(', ') || 'Unknown';
+const exportIsp =
+  details.isp && details.isp !== 'Unknown Provider'
+    ? details.isp
+    : details.asOrganization && details.asOrganization !== 'Unknown Organization'
+    ? details.asOrganization
+    : 'Unavailable';
+
 const mdExport = [
   `### Network Report: ${details.ip}`,
   `- **Protocol:** ${details.version}`,
-  `- **Location:** ${[details.city, details.region, details.country].filter(Boolean).join(', ') || 'Unknown'}`,
-  `- **ISP:** ${details.isp || details.asOrganization || 'Unknown'}`,
+  `- **Location:** ${exportLocation}`,
+  `- **ISP:** ${exportIsp}`,
   `- **ASN:** ${details.asn || 'N/A'}`,
   `- **Reverse DNS:** ${details.hostname || 'None'}`,
   `- **Coordinates:** ${details.latitude ?? 'N/A'}, ${details.longitude ?? 'N/A'}`,
@@ -83,7 +94,11 @@ const mdExport = [
             ? 'Enriched via ipwho.is'
             : details.source === 'ipinfo'
             ? 'Enriched via ipinfo.io'
-            : 'Enriched via Provider'}
+            : details.source === 'ip-api'
+            ? 'Enriched via ip-api pro'
+            : details.isPrivate
+            ? 'Private Subnet'
+            : 'Provider Temporarily Unavailable'}
         </span>
       </div>
     </div>
@@ -137,11 +152,13 @@ const mdExport = [
       <div class="inline-flex items-center gap-2 font-medium">
         <span class="text-2xl" role="img" aria-label={details.country}>{details.flagEmoji || '🌐'}</span>
         <span>
-          {[details.city, details.region, details.country].filter(Boolean).join(', ') || 'Location details unavailable'}
+          {details.source === 'fallback' && !details.isPrivate
+            ? 'Location data temporarily unavailable'
+            : [details.city, details.region, details.country].filter((v) => Boolean(v) && v !== 'Unknown' && v !== 'Network query failed').join(', ') || 'Location details unavailable'}
         </span>
       </div>
 
-      {(details.isp || details.asOrganization) && (
+      {((details.isp && details.isp !== 'Unknown Provider') || (details.asOrganization && details.asOrganization !== 'Unknown Organization')) && (
         <>
           <span class="hidden sm:inline text-neutral-300 dark:text-neutral-700">•</span>
           <div class="inline-flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400">
@@ -149,7 +166,7 @@ const mdExport = [
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
             <span class="font-semibold text-neutral-800 dark:text-neutral-200">
-              {details.isp || details.asOrganization}
+              {details.isp && details.isp !== 'Unknown Provider' ? details.isp : details.asOrganization}
             </span>
             {details.asn && (
               <span class="font-mono text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 font-normal">

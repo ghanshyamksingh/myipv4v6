@@ -95,16 +95,25 @@ export const GET: APIRoute = async ({ request }) => {
     userAgent: request.headers.get('user-agent') || undefined,
   });
 
-  const responsePayload = {
+  const responsePayload: Record<string, any> = {
     api_version: '1.0',
     ...details,
   };
+
+  if (details.source === 'fallback' && !details.isPrivate) {
+    responsePayload.message = 'Geolocation provider temporarily unavailable. IP is valid.';
+  }
+
+  const cacheControl =
+    details.source === 'fallback'
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=60, s-maxage=300';
 
   return new Response(JSON.stringify(responsePayload, null, 2), {
     status: 200,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'public, max-age=60, s-maxage=300',
+      'Cache-Control': cacheControl,
       ...rateLimitHeaders,
     },
   });

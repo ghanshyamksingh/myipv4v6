@@ -78,6 +78,18 @@ npx wrangler secret put IPINFO_TOKEN
 - [ ] **IPv6 Compatibility:**
   - Ensure Cloudflare IPv6 Compatibility is toggled **ON** in Cloudflare Network settings.
 
+- [ ] **Deploy to Cloudflare Workers:**
+  Build and deploy using Wrangler:
+  ```bash
+  pnpm build && npx wrangler deploy
+  ```
+  *(Important: Do NOT deploy via `wrangler pages deploy dist` as Pages static hosting bypasses the server entrypoint and produces 404 errors on SSR routes).*
+
+- [ ] **Verify Worker Subdomain & Custom Domain:**
+  - Worker URL: `https://myipv4v6.<your-subdomain>.workers.dev`
+  - Custom Domain: `https://www.myipv4v6.com` and `https://myipv4v6.com`
+  - In Cloudflare Dashboard, verify Custom Domains is attached to the `myipv4v6` Worker under **Worker > Settings > Domains & Routes**.
+
 ---
 
 ## 5. Security & Rate Limiting Hardening

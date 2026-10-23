@@ -36,8 +36,9 @@ export async function getCloudflareEnv(): Promise<CloudflareEnvBindings> {
 
   return {
     IP_CACHE: undefined,
-    IP_PROVIDER: process.env.IP_PROVIDER || 'ip-api',
+    IP_PROVIDER: process.env.IP_PROVIDER || 'ipwhois',
     IPINFO_TOKEN: process.env.IPINFO_TOKEN,
+    IP_API_KEY: process.env.IP_API_KEY,
     PUBLIC_SANITY_PROJECT_ID: process.env.PUBLIC_SANITY_PROJECT_ID,
     PUBLIC_SANITY_DATASET: process.env.PUBLIC_SANITY_DATASET,
     PUBLIC_SITE_URL: process.env.PUBLIC_SITE_URL,

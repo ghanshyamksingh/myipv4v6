@@ -50,21 +50,23 @@ const osmEmbedUrl = hasCoordinates
         <div>
           <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Country</dt>
           <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-            {details.country || 'Unknown'} {details.countryCode ? `(${details.countryCode})` : ''}
+            {details.country && !details.country.includes('failed') && details.country !== 'Lookup Unavailable'
+              ? `${details.country} ${details.countryCode && details.countryCode !== 'XX' ? `(${details.countryCode})` : ''}`
+              : 'Location data unavailable'}
           </dd>
         </div>
 
         <div>
           <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Region / State</dt>
           <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-            {details.region || 'Unknown'}
+            {details.region && details.region !== 'Unknown' ? details.region : 'Location data unavailable'}
           </dd>
         </div>
 
         <div>
           <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">City</dt>
           <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5">
-            {details.city || 'Unknown'}
+            {details.city && details.city !== 'Unknown' ? details.city : 'Location data unavailable'}
           </dd>
         </div>
 
@@ -116,7 +118,11 @@ const osmEmbedUrl = hasCoordinates
             <svg class="w-6 h-6 text-neutral-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            <span class="text-xs text-neutral-500 font-medium">Map preview unavailable for private/non-routable subnet</span>
+            <span class="text-xs text-neutral-500 font-medium">
+              {details.isPrivate
+                ? 'Map preview unavailable for private/non-routable subnet'
+                : 'Map preview: location data unavailable'}
+            </span>
           </div>
         )}
       </div>
@@ -145,14 +151,24 @@ const osmEmbedUrl = hasCoordinates
       <div class="sm:col-span-2">
         <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Internet Service Provider (ISP)</dt>
         <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5 truncate">
-          {details.isp || 'Unknown ISP'}
+          {details.isp && details.isp !== 'Unknown Provider'
+            ? details.isp
+            : details.source === 'fallback' && !details.isPrivate
+            ? 'Provider temporarily unavailable'
+            : 'Unknown ISP'}
         </dd>
       </div>
 
       <div class="sm:col-span-2">
         <dt class="text-xs font-medium text-neutral-400 dark:text-neutral-500">Autonomous System Organization</dt>
         <dd class="font-semibold text-neutral-800 dark:text-neutral-200 mt-0.5 truncate">
-          {details.asOrganization || details.org || 'Not reported'}
+          {details.asOrganization && details.asOrganization !== 'Unknown Organization'
+            ? details.asOrganization
+            : details.org && details.org !== 'Unknown Organization'
+            ? details.org
+            : details.source === 'fallback' && !details.isPrivate
+            ? 'Unavailable'
+            : 'Not reported'}
         </dd>
       </div>
 

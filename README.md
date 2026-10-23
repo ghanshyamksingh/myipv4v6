@@ -217,9 +217,23 @@ pnpm astro check
 pnpm build
 ```
 
-Deploy to Cloudflare:
+### Production Deployment (Cloudflare Workers)
+
+This application utilizes Astro SSR on Cloudflare with Worker edge entrypoints. Deploy using **Cloudflare Workers**:
+
 ```bash
-npx wrangler pages deploy dist
+# Recommended deploy command:
+pnpm build && npx wrangler deploy
+
+# Or via npm script:
+pnpm deploy
 ```
+
+> [!IMPORTANT]
+> **Do NOT use `wrangler pages deploy dist`**: Deploying static `dist` to Cloudflare Pages bypasses the SSR server entrypoint and causes HTTP 404 errors on dynamic routes (`/`, `/ip/[ip]`, `/api/ip`). Always use `wrangler deploy` (Cloudflare Workers).
+
+### Custom Domain vs Worker URL
+- **Production Custom Domain:** `https://www.myipv4v6.com` and `https://myipv4v6.com` (configured in Cloudflare Dashboard under Worker > Settings > Triggers / Custom Domains).
+- **Worker Subdomain:** `https://myipv4v6.<your-subdomain>.workers.dev` (useful for direct testing and health checks).
 
 See [LAUNCH.md](./LAUNCH.md) for the complete pre-flight checklist.
