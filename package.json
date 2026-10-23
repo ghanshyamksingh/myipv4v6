@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "check": "astro check",
+    "test": "node --experimental-strip-types --test tests/ip.test.ts",
     "preview": "astro preview",
     "astro": "astro",
     "generate-types": "wrangler types",

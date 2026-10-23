@@ -1,5 +1,13 @@
 export type IPVersion = 'IPv4' | 'IPv6';
 
+export type IPSource =
+  | 'cloudflare'
+  | 'cache'
+  | 'ipwhois'
+  | 'ip-api'
+  | 'ipinfo'
+  | 'fallback';
+
 export interface IPDetails {
   ip: string;
   version: IPVersion;
@@ -24,7 +32,7 @@ export interface IPDetails {
   tlsVersion?: string;
   userAgent?: string;
   flagEmoji?: string;
-  source: 'cloudflare' | 'cache' | 'ip-api' | 'ipinfo' | 'fallback';
+  source: IPSource;
   cachedAt?: number;
 }
 
@@ -47,9 +55,12 @@ export interface CloudflareGeoData {
   clientTcpRtt?: number;
 }
 
+export type SupportedProvider = 'ipwhois' | 'ipinfo' | 'ip-api';
+
 export interface LookupProviderConfig {
-  provider: 'ip-api' | 'ipinfo';
+  provider: SupportedProvider;
   ipinfoToken?: string;
+  ipApiKey?: string;
 }
 
 export interface RateLimitResult {

@@ -10,7 +10,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import FAQAccordion from '../../components/FAQAccordion.astro';
 import { cleanIP, isValidIP, getClientIP } from '../../utils/ip';
 import { enrichIP } from '../../utils/enrichment';
-import { checkRateLimit } from '../../utils/rateLimit';
+import { checkRateLimit, getRateLimitHeaders } from '../../utils/rateLimit';
 import { getFAQs } from '../../utils/sanity';
 import { getCloudflareEnv } from '../../utils/cloudflare';
 import type { IPDetails } from '../../types/ip';
@@ -22,20 +22,34 @@ const isValid = isValidIP(targetIP);
 const clientIP = getClientIP(Astro.request);
 const cfEnv = await getCloudflareEnv();
 const kv = cfEnv.IP_CACHE;
-const provider = (cfEnv.IP_PROVIDER as any) || 'ip-api';
+const provider = (cfEnv.IP_PROVIDER as any) || 'ipwhois';
 const ipinfoToken = cfEnv.IPINFO_TOKEN;
+const ipApiKey = cfEnv.IP_API_KEY;
 
-// Rate limiting check
-const rateLimit = await checkRateLimit(clientIP, kv, 100, 60);
+// Rate limiting check (unified 60 requests per 60s per client IP)
+const rateLimit = await checkRateLimit(clientIP, kv, 60, 60);
+
+// Set rate limit headers
+const rateHeaders = getRateLimitHeaders(rateLimit);
+for (const [key, val] of Object.entries(rateHeaders)) {
+  Astro.response.headers.set(key, val);
+}
+
+if (!rateLimit.allowed) {
+  Astro.response.status = 429;
+} else if (!isValid) {
+  Astro.response.status = 400;
+}
 
 // Enrich target IP if valid
 let details: IPDetails | null = null;
-if (isValid) {
+if (isValid && rateLimit.allowed) {
   details = await enrichIP(targetIP, {
     kv,
     providerConfig: {
       provider,
       ipinfoToken,
+      ipApiKey,
     },
   });
 }
@@ -135,6 +149,17 @@ const pageDescription = isValid && details
         <div class="pt-4">
           <FAQAccordion faqs={faqs} />
         </div>
+
+        <script is:inline define:vars={{ targetIP }}>
+          try {
+            const KEY = 'myipv4v6_recent_lookups';
+            let recents = JSON.parse(localStorage.getItem(KEY) || '[]');
+            recents = recents.filter((ip) => ip !== targetIP);
+            recents.unshift(targetIP);
+            if (recents.length > 5) recents = recents.slice(0, 5);
+            localStorage.setItem(KEY, JSON.stringify(recents));
+          } catch {}
+        </script>
       </div>
     )}
   </div>

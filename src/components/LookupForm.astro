@@ -55,32 +55,119 @@ const sampleIPs = [
   </form>
 
   {!compact && (
-    <div class="mt-3.5 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
-      <span class="font-medium text-neutral-600 dark:text-neutral-300">Quick tests:</span>
-      {sampleIPs.map((item) => (
-        <a
-          href={`/ip/${encodeURIComponent(item.ip)}`}
-          class="inline-flex items-center px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800/80 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 border border-neutral-200/60 dark:border-neutral-700/60 font-mono text-xs transition-colors"
+    <div class="mt-3.5 flex flex-col gap-2.5">
+      <!-- Quick sample tests -->
+      <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+        <span class="font-medium text-neutral-600 dark:text-neutral-300">Quick tests:</span>
+        {sampleIPs.map((item) => (
+          <a
+            href={`/ip/${encodeURIComponent(item.ip)}`}
+            class="inline-flex items-center px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800/80 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 border border-neutral-200/60 dark:border-neutral-700/60 font-mono text-xs transition-colors"
+          >
+            {item.label}: <span class="font-semibold ml-1">{item.ip}</span>
+          </a>
+        ))}
+      </div>
+
+      <!-- Client-Only Recent Search History (Reinforces Zero-Tracking Privacy) -->
+      <div id="recent-lookups-container" class="hidden flex-wrap items-center gap-2 pt-2 border-t border-neutral-200/60 dark:border-neutral-800/60 text-xs">
+        <div class="flex items-center gap-1.5 font-semibold text-neutral-600 dark:text-neutral-300">
+          <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Recent (private to browser):</span>
+        </div>
+        <div id="recent-lookups-list" class="flex flex-wrap items-center gap-1.5"></div>
+        <button
+          type="button"
+          id="clear-recent-btn"
+          class="text-[11px] text-neutral-400 hover:text-red-500 dark:hover:text-red-400 ml-auto transition-colors cursor-pointer"
+          title="Clear search history from browser storage"
         >
-          {item.label}: <span class="font-semibold ml-1">{item.ip}</span>
-        </a>
-      ))}
+          Clear
+        </button>
+      </div>
     </div>
   )}
 </div>
 
 <script is:inline>
-  if (!window.__ipLookupFormInitialized) {
-    window.__ipLookupFormInitialized = true;
-    document.addEventListener('submit', (e) => {
-      const form = e.target && e.target.closest ? e.target.closest('.ip-search-form') : null;
-      if (!form) return;
-      e.preventDefault();
-      const input = form.querySelector('.ip-search-input');
-      const val = input ? input.value.trim() : '';
-      if (val) {
-        window.location.href = '/ip/' + encodeURIComponent(val);
+  (function () {
+    const STORAGE_KEY = 'myipv4v6_recent_lookups';
+
+    function getRecents() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
       }
-    });
-  }
+    }
+
+    function saveRecent(ip) {
+      if (!ip) return;
+      try {
+        let recents = getRecents().filter((item) => item !== ip);
+        recents.unshift(ip);
+        if (recents.length > 5) recents = recents.slice(0, 5);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(recents));
+      } catch {}
+    }
+
+    function renderRecents() {
+      const container = document.getElementById('recent-lookups-container');
+      const list = document.getElementById('recent-lookups-list');
+      if (!container || !list) return;
+
+      const recents = getRecents();
+      if (!recents || recents.length === 0) {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+        return;
+      }
+
+      list.innerHTML = '';
+      recents.forEach((ip) => {
+        const a = document.createElement('a');
+        a.href = '/ip/' + encodeURIComponent(ip);
+        a.className =
+          'inline-flex items-center px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 font-mono text-[11px] border border-neutral-200/50 dark:border-neutral-750 transition-colors';
+        a.textContent = ip;
+        list.appendChild(a);
+      });
+
+      container.classList.remove('hidden');
+      container.classList.add('flex');
+    }
+
+    // Bind form submit
+    if (!window.__ipLookupFormInitialized) {
+      window.__ipLookupFormInitialized = true;
+      document.addEventListener('submit', (e) => {
+        const form = e.target && e.target.closest ? e.target.closest('.ip-search-form') : null;
+        if (!form) return;
+        e.preventDefault();
+        const input = form.querySelector('.ip-search-input');
+        const val = input ? input.value.trim() : '';
+        if (val) {
+          saveRecent(val);
+          window.location.href = '/ip/' + encodeURIComponent(val);
+        }
+      });
+    }
+
+    // Bind clear button
+    const clearBtn = document.getElementById('clear-recent-btn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {}
+        renderRecents();
+      });
+    }
+
+    // Initial render
+    renderRecents();
+  })();
 </script>

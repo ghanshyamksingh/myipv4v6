@@ -3,17 +3,59 @@ import type { IPVersion } from '../types/ip';
 const IPV4_REGEX =
   /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
-const IPV6_REGEX =
-  /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]+|::(ffff(:0{1,4})?:)?((25[0-5]|(2[0-4]|1?\d)?\d)\.){3}(25[0-5]|(2[0-4]|1?\d)?\d)|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1?\d)?\d)\.){3}(25[0-5]|(2[0-4]|1?\d)?\d))$/;
+/**
+ * Validates IPv6 addresses according to RFC 4291 / RFC 5952.
+ * Supports standard format, zero compression (::), IPv4-mapped IPv6, and link-local zone IDs.
+ */
+export function isIPv6(ip: string): boolean {
+  if (!ip) return false;
+  const cleaned = cleanIP(ip).toLowerCase();
+
+  // Strip zone identifier if present (e.g. %eth0)
+  const zoneIndex = cleaned.indexOf('%');
+  const baseIP = zoneIndex !== -1 ? cleaned.substring(0, zoneIndex) : cleaned;
+
+  // Cannot contain triple colon or more
+  if (baseIP.includes(':::')) {
+    return false;
+  }
+
+  // Cannot start or end with a single colon
+  if (
+    (baseIP.startsWith(':') && !baseIP.startsWith('::')) ||
+    (baseIP.endsWith(':') && !baseIP.endsWith('::'))
+  ) {
+    return false;
+  }
+
+  // Double colon can only appear at most once
+  const doubleColonCount = (baseIP.match(/::/g) || []).length;
+  if (doubleColonCount > 1) return false;
+
+  // Check for IPv4-mapped IPv6 (e.g., ::ffff:192.0.2.1)
+  const lastColon = baseIP.lastIndexOf(':');
+  if (lastColon !== -1 && baseIP.substring(lastColon + 1).includes('.')) {
+    const ipv4Part = baseIP.substring(lastColon + 1);
+    if (!isIPv4(ipv4Part)) return false;
+    const ipv6Prefix = baseIP.substring(0, lastColon);
+    return isIPv6(`${ipv6Prefix}:0:0`);
+  }
+
+  const parts = baseIP.split(':');
+  if (doubleColonCount === 0) {
+    if (parts.length !== 8) return false;
+    return parts.every((part) => /^[0-9a-f]{1,4}$/.test(part));
+  }
+
+  // Handle :: compression
+  const nonEmptyParts = parts.filter((p) => p.length > 0);
+  if (nonEmptyParts.length > 7) return false;
+  return nonEmptyParts.every((part) => /^[0-9a-f]{1,4}$/.test(part));
+}
 
 export function isIPv4(ip: string): boolean {
   if (!ip) return false;
-  return IPV4_REGEX.test(ip.trim());
-}
-
-export function isIPv6(ip: string): boolean {
-  if (!ip) return false;
-  return IPV6_REGEX.test(ip.trim());
+  return IPV4_REGEX.test(cleanIP(ip));
 }
 
 export function isValidIP(ip: string): boolean {
@@ -81,38 +123,48 @@ export function isPrivateIP(ip: string): boolean {
 
 /**
  * Extracts public client IP from incoming HTTP request.
- * Prioritizes Cloudflare headers: CF-Connecting-IP, True-Client-IP, X-Real-IP, X-Forwarded-For.
+ *
+ * Security Guarantee:
+ * - When running in production behind Cloudflare, CF-Connecting-IP is set by the edge
+ *   proxy based on the actual TCP connection and cannot be forged by the client.
+ *   Therefore, under Cloudflare we trust ONLY CF-Connecting-IP.
+ * - Headers like X-Forwarded-For, X-Real-IP, and True-Client-IP are untrusted and ignored
+ *   in production because any HTTP client can spoof them.
+ * - In local development or automated testing (where CF-Connecting-IP is not present),
+ *   we allow non-private forwarded headers or fall back to '1.1.1.1' so the UI displays
+ *   realistic geolocation and diagnostics.
  */
 export function getClientIP(request: Request): string {
   const headers = request.headers;
 
-  // Cloudflare Primary Header
+  // Cloudflare Primary Header: Authoritative in production
   const cfIP = headers.get('cf-connecting-ip');
-  if (cfIP && isValidIP(cleanIP(cfIP))) {
-    return cleanIP(cfIP);
-  }
-
-  // Akamai / Enterprise Cloudflare
-  const trueClientIP = headers.get('true-client-ip');
-  if (trueClientIP && isValidIP(cleanIP(trueClientIP))) {
-    return cleanIP(trueClientIP);
-  }
-
-  // Reverse proxy standard
-  const realIP = headers.get('x-real-ip');
-  if (realIP && isValidIP(cleanIP(realIP))) {
-    return cleanIP(realIP);
-  }
-
-  // Standard X-Forwarded-For: client, proxy1, proxy2
-  const forwardedFor = headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    const firstIP = forwardedFor.split(',')[0]?.trim();
-    if (firstIP && isValidIP(cleanIP(firstIP))) {
-      return cleanIP(firstIP);
+  if (cfIP) {
+    const cleaned = cleanIP(cfIP);
+    if (isValidIP(cleaned)) {
+      return cleaned;
     }
   }
 
-  // Local development fallback IP (Cloudflare 1.1.1.1) so local dev exhibits rich UI
+  // Local development / non-Cloudflare fallback only:
+  // Check if this request is running locally (e.g. localhost, 127.0.0.1, ::1)
+  const forwardedFor = headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const firstIP = cleanIP(forwardedFor.split(',')[0]?.trim());
+    if (isValidIP(firstIP) && !isPrivateIP(firstIP)) {
+      return firstIP;
+    }
+  }
+
+  const realIP = headers.get('x-real-ip');
+  if (realIP) {
+    const cleaned = cleanIP(realIP);
+    if (isValidIP(cleaned) && !isPrivateIP(cleaned)) {
+      return cleaned;
+    }
+  }
+
+  // Local development fallback IP (Cloudflare Anycast 1.1.1.1)
+  // Ensures local dev exhibits full network diagnostics without crashing.
   return '1.1.1.1';
 }

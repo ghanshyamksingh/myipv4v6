@@ -1,7 +1,10 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"compatibility_date": "2026-10-12",
-	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
 	"name": "myipv4v6",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
@@ -10,6 +13,9 @@
 	},
 	"kv_namespaces": [
 		{
+			// Cloudflare KV Namespace for 24h IP Enrichment Caching and Ephemeral Rate Limiting.
+			// 1. Run: npx wrangler kv namespace create IP_CACHE
+			// 2. Replace the id below with your generated namespace ID.
 			"binding": "IP_CACHE",
 			"id": "myipv4v6_ip_cache"
 		}

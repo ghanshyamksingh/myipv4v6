@@ -38,13 +38,13 @@ const pageDescription = 'Comprehensive Privacy Policy for myipv4v6.com. Explaini
       <section class="flex flex-col gap-3">
         <h2 class="text-xl font-bold text-neutral-900 dark:text-white">1. Core Architectural Principle: Zero Logging</h2>
         <p>
-          At <strong>myipv4v6.com</strong>, we believe privacy is not merely a policy statement—it is an architectural design constraint. Unlike traditional lookup portals that monetize user data or compile historical tracking profiles, our platform operates on an uncompromising <strong>zero-logging</strong> standard.
+          At <strong>myipv4v6.com</strong>, we believe privacy is not merely a policy statement—it is an architectural design constraint. The application itself does not log, store, track, or sell visitor IP addresses.
         </p>
         <p>
           When you connect to our service, your public IP address is transmitted in standard TCP/IP packet headers. This IP address is processed strictly in <strong>volatile RAM memory</strong> at the Cloudflare edge worker node nearest to you to render your response HTML or JSON. Upon completion of that HTTP transmission, your IP address is immediately discarded from memory.
         </p>
         <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm">
-          <strong>Key Guarantee:</strong> We do not log, persist, archive, analyze, or write your personal IP address to any database, file system, disk storage, or search history repository.
+          <strong>Key Guarantee:</strong> The application does not log, persist, archive, analyze, or write your personal IP address to any database, file system, disk storage, or search history repository.
         </div>
       </section>
 
@@ -59,17 +59,18 @@ const pageDescription = 'Comprehensive Privacy Policy for myipv4v6.com. Explaini
           <li>Browser canvas fingerprinting, WebGL auditing, or device identification heuristics.</li>
         </ul>
         <p>
-          The only client-side storage we utilize is a single key in your browser's local <code>localStorage</code> (<code>theme = 'dark' | 'light'</code>), which records your visual preference so your screen does not flicker when navigating pages. This value remains entirely on your device and is never sent to our servers.
+          The only client-side storage we utilize is browser <code>localStorage</code> (e.g. your visual theme preference <code>theme = 'dark' | 'light'</code> and an optional private recent query cache). This data remains strictly in your personal browser and is never transmitted to our servers or third parties.
         </p>
       </section>
 
       <section class="flex flex-col gap-3">
-        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">3. How Search Queries & IP Lookups Are Handled</h2>
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white">3. How Search Queries & External Enrichment Work</h2>
         <p>
-          When you enter an IP address or domain name into our lookup form:
+          When you use our IP lookup tool to query an IP address:
         </p>
         <ul class="list-disc pl-5 space-y-1.5 text-sm">
-          <li><strong>Server-Side Proxying:</strong> The query is executed by our edge server. The destination network registry or upstream geolocation database never sees your personal IP address.</li>
+          <li><strong>Server-Side Proxied Resolution:</strong> The enrichment query is executed by our edge server worker. The queried network or third-party database never sees your personal device's IP.</li>
+          <li><strong>Third-Party Geolocation Providers:</strong> To provide accurate ISP and autonomous system (ASN) data, our edge server queries trusted geolocation databases (such as ipwho.is, IPinfo, or Cloudflare edge data). As part of normal HTTPS request routing, the queried target IP is transmitted securely to the provider's API.</li>
           <li><strong>24-Hour Public Data Caching:</strong> Public network intelligence (e.g., ASN, country, city, ISP name) for queried addresses is cached in Cloudflare Key-Value (KV) storage for 24 hours to maximize response speed and eliminate redundant API calls. <em>No association between the queried IP address and the person or device searching it is ever recorded or stored.</em></li>
         </ul>
       </section>
@@ -77,7 +78,7 @@ const pageDescription = 'Comprehensive Privacy Policy for myipv4v6.com. Explaini
       <section class="flex flex-col gap-3">
         <h2 class="text-xl font-bold text-neutral-900 dark:text-white">4. Cloudflare Global Edge Infrastructure</h2>
         <p>
-          myipv4v6.com is deployed across Cloudflare's global edge network. Cloudflare operates as a reverse proxy to protect against Distributed Denial of Service (DDoS) attacks, provide TLS/SSL cryptographic handshakes, and optimize edge packet routing. Cloudflare processes ephemeral network metadata in accordance with its strict data privacy obligations under GDPR and standard contractual clauses.
+          myipv4v6.com is deployed across Cloudflare's global edge network. Cloudflare operates as the underlying reverse proxy infrastructure to protect against Distributed Denial of Service (DDoS) attacks, terminate TLS/SSL cryptographic handshakes, and optimize edge packet routing. As with all internet infrastructure, Cloudflare handles IP packets at the network transport layer in accordance with strict global data privacy standards (including GDPR and SOC 2 Type II compliance).
         </p>
       </section>
 

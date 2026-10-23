@@ -3,7 +3,7 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { cleanIP, getClientIP, isValidIP } from '../../utils/ip';
 import { enrichIP } from '../../utils/enrichment';
-import { checkRateLimit } from '../../utils/rateLimit';
+import { checkRateLimit, getRateLimitHeaders } from '../../utils/rateLimit';
 import { getCloudflareEnv, getCloudflareGeo } from '../../utils/cloudflare';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -18,16 +18,14 @@ export const GET: APIRoute = async ({ request }) => {
   const cfEnv = await getCloudflareEnv();
   const kv = cfEnv.IP_CACHE;
   const cfData = getCloudflareGeo(request);
-  const provider = (cfEnv.IP_PROVIDER as any) || 'ip-api';
+  const provider = (cfEnv.IP_PROVIDER as any) || 'ipwhois';
   const ipinfoToken = cfEnv.IPINFO_TOKEN;
+  const ipApiKey = cfEnv.IP_API_KEY;
 
-  // Rate Limiting (60 requests per minute)
+  // Rate Limiting (60 requests per 60s per client IP)
   const rateLimit = await checkRateLimit(clientIP, kv, 60, 60);
-
   const rateLimitHeaders = {
-    'X-RateLimit-Limit': rateLimit.limit.toString(),
-    'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-    'X-RateLimit-Reset': rateLimit.reset.toString(),
+    ...getRateLimitHeaders(rateLimit),
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -92,11 +90,17 @@ export const GET: APIRoute = async ({ request }) => {
     providerConfig: {
       provider,
       ipinfoToken,
+      ipApiKey,
     },
     userAgent: request.headers.get('user-agent') || undefined,
   });
 
-  return new Response(JSON.stringify(details, null, 2), {
+  const responsePayload = {
+    api_version: '1.0',
+    ...details,
+  };
+
+  return new Response(JSON.stringify(responsePayload, null, 2), {
     status: 200,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',

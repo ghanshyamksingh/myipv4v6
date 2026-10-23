@@ -31,7 +31,7 @@ export const DEFAULT_FAQS: SanityFaq[] = [
     _type: 'faq',
     question: 'Does myipv4v6.com log or sell my IP address?',
     answer:
-      'Absolutely not. myipv4v6.com is engineered with a strict zero-logging privacy policy. Your IP address is processed dynamically in volatile server memory at Cloudflare edge data centers solely to return your request and is never permanently written to user tracking databases or sold to third parties.',
+      'The application itself does not log, store, track, or sell visitor IP addresses. Requests are processed strictly in volatile RAM at Cloudflare edge worker nodes and immediately discarded. While underlying infrastructure (Cloudflare) handles network packet transport, our application never writes visitor IPs to disk or persistent user tracking databases.',
     order: 4,
   },
   {

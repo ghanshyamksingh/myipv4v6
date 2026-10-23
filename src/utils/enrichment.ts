@@ -1,13 +1,26 @@
-import type { CloudflareGeoData, IPDetails, LookupProviderConfig } from '../types/ip';
+import type { CloudflareGeoData, IPDetails, LookupProviderConfig, SupportedProvider } from '../types/ip';
 import type { CloudflareKVNamespace } from '../env';
 import { cleanIP, getIPVersion, isPrivateIP, isValidIP } from './ip';
 import { countryCodeToEmoji, getLocalTime } from './geo';
 import { resolveReverseDNS } from './dns';
 
 const memoryCache = new Map<string, { data: IPDetails; expiresAt: number }>();
+const MAX_ENRICHMENT_CACHE_SIZE = 1000;
 
-export interface ExtendedProviderConfig extends LookupProviderConfig {
-  ipApiKey?: string;
+function pruneEnrichmentCache(now: number): void {
+  if (memoryCache.size > MAX_ENRICHMENT_CACHE_SIZE) {
+    for (const [key, val] of memoryCache.entries()) {
+      if (now >= val.expiresAt) {
+        memoryCache.delete(key);
+      }
+    }
+    if (memoryCache.size > MAX_ENRICHMENT_CACHE_SIZE) {
+      const keysToDelete = Array.from(memoryCache.keys()).slice(0, 200);
+      for (const k of keysToDelete) {
+        memoryCache.delete(k);
+      }
+    }
+  }
 }
 
 /**
@@ -20,7 +33,7 @@ export async function enrichIP(
     cfData?: CloudflareGeoData;
     isVisitor?: boolean;
     kv?: CloudflareKVNamespace;
-    providerConfig?: ExtendedProviderConfig;
+    providerConfig?: LookupProviderConfig;
     userAgent?: string;
     protocol?: string;
   }
@@ -69,6 +82,7 @@ export async function enrichIP(
     try {
       const cached = await options.kv.get(cacheKey, { type: 'json' });
       if (cached && typeof cached === 'object' && cached.ip) {
+        pruneEnrichmentCache(now);
         memoryCache.set(cacheKey, { data: cached, expiresAt: now + 3600 * 1000 });
         return {
           ...cached,
@@ -87,7 +101,7 @@ export async function enrichIP(
     const lat = typeof cf.latitude === 'string' ? parseFloat(cf.latitude) : cf.latitude;
     const lon = typeof cf.longitude === 'string' ? parseFloat(cf.longitude) : cf.longitude;
 
-    // Resolve reverse DNS via DoH concurrently
+    // Resolve authoritative reverse DNS via DoH concurrently
     const rDnsPromise = resolveReverseDNS(ip);
 
     const details: IPDetails = {
@@ -123,8 +137,8 @@ export async function enrichIP(
     return details;
   }
 
-  // 4. External Enrichment Provider (100% HTTPS)
-  const provider = options?.providerConfig?.provider || 'ip-api';
+  // 4. External Enrichment Provider (Default: ipwhois, 100% HTTPS)
+  const provider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
   let details: IPDetails | null = null;
 
   try {
@@ -136,8 +150,9 @@ export async function enrichIP(
       // Default to ipwhois (free, 100% HTTPS, reliable)
       details = await fetchFromIpWhois(ip);
     }
-  } catch {
-    // If primary failed, try fallback
+  } catch (err) {
+    // Structured error logging without logging full visitor IP (protecting privacy)
+    console.error(`[Enrichment Error] Provider ${provider} failed for masked IP ${maskIP(ip)}:`, err);
     try {
       details = await fetchFromIpWhois(ip);
     } catch {
@@ -145,7 +160,7 @@ export async function enrichIP(
     }
   }
 
-  // 5. Ensure Reverse DNS is resolved if missing
+  // 5. Ensure Authoritative Reverse DNS is resolved if missing
   if (details && !details.hostname) {
     try {
       details.hostname = await resolveReverseDNS(ip);
@@ -200,7 +215,7 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
       isp: data.connection?.isp || data.connection?.org,
       org: data.connection?.org,
       hostname: data.connection?.domain,
-      source: 'ip-api',
+      source: 'ipwhois',
       cachedAt: Date.now(),
     };
   } catch {
@@ -210,7 +225,7 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
 }
 
 /**
- * Pro HTTPS Provider: pro.ip-api.com
+ * Pro HTTPS Provider: pro.ip-api.com (Requires paid API Key)
  */
 async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | null> {
   const controller = new AbortController();
@@ -306,6 +321,7 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
 }
 
 async function saveToCache(key: string, details: IPDetails, kv?: CloudflareKVNamespace): Promise<void> {
+  pruneEnrichmentCache(Date.now());
   memoryCache.set(key, { data: details, expiresAt: Date.now() + 3600 * 1000 });
 
   if (kv) {
@@ -332,4 +348,20 @@ function createEmptyDetails(ip: string, version: 'IPv4' | 'IPv6', message?: stri
     source: 'fallback',
     localTime: 'Unavailable',
   };
+}
+
+/**
+ * Masks an IP address for structured observability without storing raw visitor IPs.
+ * e.g., 198.51.100.42 -> 198.51.xxx.xxx, 2001:db8::1 -> 2001:db8:xxxx:...
+ */
+export function maskIP(ip: string): string {
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+    return parts.length === 4 ? `${parts[0]}.${parts[1]}.xxx.xxx` : 'xxx.xxx.xxx.xxx';
+  }
+  if (ip.includes(':')) {
+    const parts = ip.split(':');
+    return parts.length >= 2 ? `${parts[0]}:${parts[1]}:xxxx:...` : 'xxxx:...';
+  }
+  return 'masked';
 }
