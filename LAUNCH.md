@@ -142,3 +142,13 @@ npx wrangler secret put IPINFO_TOKEN
   - Text API endpoint: `GET https://myipv4v6.com/api/ip?format=text` (expects 200 OK, plain text IP).
 - [ ] **Cloudflare Analytics & Observability:**
   - Enable Cloudflare Workers Observability to monitor invocation counts, CPU time, and error rates.
+
+---
+
+## 9. Troubleshooting & Operational Diagnostics
+
+- **Arbitrary lookups show "provider temporarily unavailable" while own-IP works:**
+  - Check Cloudflare Workers Observability logs for structured events: `ipwhois_*`, `ipinfo_*`, `provider_circuit_breaker_*`, or `enrichment_all_providers_failed`.
+  - Default provider `ipwhois` requires no auth; setting `IPINFO_TOKEN` in your Cloudflare environment variables provides a reliable secondary authenticated fallback when shared Cloudflare egress IPs experience free-tier rate limits.
+  - Verify deployment: Always deploy via `pnpm build && npx wrangler deploy` (never deploy via `wrangler pages deploy dist` for SSR apps).
+

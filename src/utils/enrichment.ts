@@ -10,23 +10,44 @@ const MAX_ENRICHMENT_CACHE_SIZE = 1000;
 const USER_AGENT = 'myipv4v6/1.0 (https://myipv4v6.com; edge lookup)';
 
 // Lightweight isolate-local circuit breaker for external providers
-// Consecutively failed requests trip the breaker to skip a degraded provider during outages
+// Consecutively failed requests trip the breaker to skip a degraded provider during outages.
+// When cooldown elapses, a single half-open trial is permitted.
 interface CircuitState {
   failures: number;
   openUntil: number;
+  halfOpenTrialInFlight?: boolean;
 }
 const providerCircuits = new Map<SupportedProvider, CircuitState>();
-const CIRCUIT_FAILURE_THRESHOLD = 5;
-const CIRCUIT_COOLDOWN_MS = 30_000;
+export const CIRCUIT_FAILURE_THRESHOLD = 5;
+export const CIRCUIT_COOLDOWN_MS = 30_000;
 
+/**
+ * Returns true only while the circuit is currently open and within its cooldown window.
+ * If cooldown has elapsed, returns false (or true if a half-open trial is already active).
+ */
 export function isCircuitOpen(provider: SupportedProvider): boolean {
   const state = providerCircuits.get(provider);
   if (!state) return false;
-  if (Date.now() < state.openUntil) {
+  const now = Date.now();
+  if (now < state.openUntil) {
     return true;
   }
-  // Cooldown elapsed: half-open, allow trial request
-  return false;
+  // Cooldown elapsed: half-open. Only block if another trial is currently in flight
+  return Boolean(state.halfOpenTrialInFlight);
+}
+
+/**
+ * Transitions a half-open circuit to an in-flight trial state so subsequent concurrent requests skip.
+ */
+export function startTrialIfHalfOpen(provider: SupportedProvider): boolean {
+  const state = providerCircuits.get(provider);
+  if (!state) return true;
+  const now = Date.now();
+  if (now < state.openUntil) {
+    return false;
+  }
+  state.halfOpenTrialInFlight = true;
+  return true;
 }
 
 export function recordProviderSuccess(provider: SupportedProvider): void {
@@ -36,6 +57,7 @@ export function recordProviderSuccess(provider: SupportedProvider): void {
 export function recordProviderFailure(provider: SupportedProvider): void {
   const now = Date.now();
   const state = providerCircuits.get(provider) || { failures: 0, openUntil: 0 };
+  state.halfOpenTrialInFlight = false;
   state.failures += 1;
   if (state.failures >= CIRCUIT_FAILURE_THRESHOLD) {
     state.openUntil = now + CIRCUIT_COOLDOWN_MS;
@@ -214,69 +236,57 @@ export async function enrichIP(
   }
 
   // 4. Reliable multi-provider fallback with isolate-local circuit breaker
-  const configuredProvider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
+  const primaryProvider: SupportedProvider = options?.providerConfig?.provider || 'ipwhois';
+  
+  // Build ordered candidate list:
+  // 1. Configured primary (default ipwhois)
+  // 2. ipwhois (if not primary)
+  // 3. ipinfo (if not primary)
+  // 4. ip-api (only if API key is configured and not primary)
+  const candidateProviders: SupportedProvider[] = [primaryProvider];
+  if (primaryProvider !== 'ipwhois') candidateProviders.push('ipwhois');
+  if (primaryProvider !== 'ipinfo') candidateProviders.push('ipinfo');
+  if (options?.providerConfig?.ipApiKey && primaryProvider !== 'ip-api') {
+    candidateProviders.push('ip-api');
+  }
+
+  // Check if all candidate circuits are open
+  const allCircuitsOpen = candidateProviders.every((p) => isCircuitOpen(p));
+
   let details: IPDetails | null = null;
+  const triedProviders: SupportedProvider[] = [];
 
-  // Primary attempt (if circuit is closed)
-  if (!isCircuitOpen(configuredProvider)) {
+  for (const provider of candidateProviders) {
+    // If all circuits are open, allow one trial on primary (true half-open); otherwise respect isCircuitOpen
+    const canAttempt = allCircuitsOpen ? provider === primaryProvider : !isCircuitOpen(provider);
+
+    if (!canAttempt) {
+      logger.info('circuit_breaker_skipping_provider', { provider });
+      continue;
+    }
+
+    startTrialIfHalfOpen(provider);
+    triedProviders.push(provider);
+
     try {
-      if (configuredProvider === 'ipinfo') {
-        details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
-      } else if (configuredProvider === 'ip-api' && options?.providerConfig?.ipApiKey) {
-        details = await fetchFromIpApiPro(ip, options.providerConfig.ipApiKey);
-      } else {
+      if (provider === 'ipwhois') {
         details = await fetchFromIpWhois(ip);
+      } else if (provider === 'ipinfo') {
+        details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
+      } else if (provider === 'ip-api' && options?.providerConfig?.ipApiKey) {
+        details = await fetchFromIpApiPro(ip, options.providerConfig.ipApiKey);
       }
 
       if (details) {
-        recordProviderSuccess(configuredProvider);
+        recordProviderSuccess(provider);
+        break;
       } else {
-        recordProviderFailure(configuredProvider);
+        recordProviderFailure(provider);
       }
     } catch (err: any) {
-      recordProviderFailure(configuredProvider);
-      logger.error('enrichment_primary_failed', {
-        provider: configuredProvider,
-        ip,
-        error: err?.message || String(err),
-      });
-    }
-  } else {
-    logger.info('circuit_breaker_skipping_primary', { provider: configuredProvider });
-  }
-
-  // Secondary fallback: ipwhois if not already tried and circuit is closed
-  if (!details && configuredProvider !== 'ipwhois' && !isCircuitOpen('ipwhois')) {
-    try {
-      details = await fetchFromIpWhois(ip);
-      if (details) {
-        recordProviderSuccess('ipwhois');
-      } else {
-        recordProviderFailure('ipwhois');
-      }
-    } catch (err: any) {
-      recordProviderFailure('ipwhois');
-      logger.warn('enrichment_secondary_ipwhois_failed', {
-        provider: 'ipwhois',
-        ip,
-        error: err?.message || String(err),
-      });
-    }
-  }
-
-  // Tertiary fallback: ipinfo (free tier or token) if not already tried and circuit is closed
-  if (!details && configuredProvider !== 'ipinfo' && !isCircuitOpen('ipinfo')) {
-    try {
-      details = await fetchFromIpinfo(ip, options?.providerConfig?.ipinfoToken);
-      if (details) {
-        recordProviderSuccess('ipinfo');
-      } else {
-        recordProviderFailure('ipinfo');
-      }
-    } catch (err: any) {
-      recordProviderFailure('ipinfo');
-      logger.warn('enrichment_tertiary_ipinfo_failed', {
-        provider: 'ipinfo',
+      recordProviderFailure(provider);
+      logger.error('enrichment_provider_failed', {
+        provider,
         ip,
         error: err?.message || String(err),
       });
@@ -301,7 +311,13 @@ export async function enrichIP(
     return details;
   }
 
-  // 6. If all external providers fail, still attempt reverse DNS so we have diagnostic data
+  // 6. If all external providers fail, log and attempt reverse DNS for diagnostics
+  logger.warn('enrichment_all_providers_failed', {
+    ip,
+    triedProviders,
+    allCircuitsOpen,
+  });
+
   let fallbackHostname: string | undefined;
   try {
     fallbackHostname = await resolveReverseDNS(ip);
@@ -334,10 +350,13 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
         'User-Agent': USER_AGENT,
       },
     });
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
-      logger.warn('ipwhois_http_status_error', { provider: 'ipwhois', ip, status: res.status });
+      let snippet = '';
+      try {
+        snippet = (await res.text()).slice(0, 100);
+      } catch {}
+      logger.warn('ipwhois_http_status_error', { provider: 'ipwhois', ip, status: res.status, snippet });
       return null;
     }
 
@@ -377,13 +396,14 @@ async function fetchFromIpWhois(ip: string): Promise<IPDetails | null> {
       cachedAt: Date.now(),
     };
   } catch (err: any) {
-    clearTimeout(timeoutId);
     logger.warn('ipwhois_network_exception', {
       provider: 'ipwhois',
       ip,
       error: err?.message || String(err),
     });
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -405,10 +425,13 @@ async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | n
         },
       }
     );
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
-      logger.warn('ip_api_pro_http_status_error', { provider: 'ip-api', ip, status: res.status });
+      let snippet = '';
+      try {
+        snippet = (await res.text()).slice(0, 100);
+      } catch {}
+      logger.warn('ip_api_pro_http_status_error', { provider: 'ip-api', ip, status: res.status, snippet });
       return null;
     }
 
@@ -446,13 +469,14 @@ async function fetchFromIpApiPro(ip: string, key: string): Promise<IPDetails | n
       cachedAt: Date.now(),
     };
   } catch (err: any) {
-    clearTimeout(timeoutId);
     logger.warn('ip_api_pro_network_exception', {
       provider: 'ip-api',
       ip,
       error: err?.message || String(err),
     });
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -476,10 +500,13 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
         'User-Agent': USER_AGENT,
       },
     });
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
-      logger.warn('ipinfo_http_status_error', { provider: 'ipinfo', ip, status: res.status });
+      let snippet = '';
+      try {
+        snippet = (await res.text()).slice(0, 100);
+      } catch {}
+      logger.warn('ipinfo_http_status_error', { provider: 'ipinfo', ip, status: res.status, snippet });
       return null;
     }
 
@@ -514,13 +541,14 @@ async function fetchFromIpinfo(ip: string, token?: string): Promise<IPDetails | 
       cachedAt: Date.now(),
     };
   } catch (err: any) {
-    clearTimeout(timeoutId);
     logger.warn('ipinfo_network_exception', {
       provider: 'ipinfo',
       ip,
       error: err?.message || String(err),
     });
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

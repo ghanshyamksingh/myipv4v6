@@ -52,6 +52,7 @@ let details: IPDetails | null = null;
 if (isValid && rateLimit.allowed) {
   details = await enrichIP(targetIP, {
     kv,
+    isVisitor: false,
     providerConfig: {
       provider,
       ipinfoToken,

@@ -275,4 +275,13 @@ pnpm deploy
 - **Production Custom Domain:** `https://www.myipv4v6.com` and `https://myipv4v6.com` (configured in Cloudflare Dashboard under Worker > Settings > Triggers / Custom Domains).
 - **Worker Subdomain:** `https://myipv4v6.<your-subdomain>.workers.dev` (useful for direct testing and health checks).
 
+---
+
+## Troubleshooting & Geolocation Diagnostics
+
+- **Arbitrary lookups show "provider temporarily unavailable" while own-IP works:**
+  - Check Cloudflare Workers Observability logs for structured events: `ipwhois_*`, `ipinfo_*`, `provider_circuit_breaker_*`, or `enrichment_all_providers_failed`.
+  - Prefer `IP_PROVIDER=ipwhois` (default free HTTPS). For higher reliability from shared Cloudflare egress IP pools, configure `IPINFO_TOKEN=your_token` in Cloudflare Variables & Secrets.
+  - Deployment command: Always deploy with `pnpm build && npx wrangler deploy` (never deploy via `wrangler pages deploy dist` for SSR apps).
+
 See [LAUNCH.md](./LAUNCH.md) for the complete pre-flight checklist.

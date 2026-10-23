@@ -482,9 +482,58 @@ describe('IP Utilities Test Suite', () => {
         assert.equal(res.ip, '2.3.4.5');
         assert.equal(res.source, 'ipinfo');
         assert.equal(res.city, 'Paris');
+        assert.equal(res.country, 'FR');
       } finally {
         globalThis.fetch = originalFetch;
         resetCircuitBreakers();
+      }
+    });
+
+    it('falls back to empty details with reverse DNS when all providers fail', async () => {
+      const originalFetch = globalThis.fetch;
+      try {
+        globalThis.fetch = async (input: RequestInfo | URL) => {
+          const urlStr = input.toString();
+          if (urlStr.includes('cloudflare-dns.com')) {
+            return new Response(
+              JSON.stringify({
+                Status: 0,
+                Answer: [{ data: 'dns.google.' }],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+          // Both providers return 500
+          return new Response('Service Unavailable', { status: 503 });
+        };
+
+        const res = await enrichIP('8.8.8.8');
+        assert.equal(res.ip, '8.8.8.8');
+        assert.equal(res.source, 'fallback');
+        assert.equal(res.country, 'Network query failed');
+        assert.equal(res.hostname, 'dns.google');
+      } finally {
+        globalThis.fetch = originalFetch;
+        resetCircuitBreakers();
+      }
+    });
+
+    it('private and bogon IPs short-circuit with zero network requests', async () => {
+      const originalFetch = globalThis.fetch;
+      let networkCalled = false;
+      try {
+        globalThis.fetch = async () => {
+          networkCalled = true;
+          throw new Error('Network should not be called for private bogon IP');
+        };
+
+        const res = await enrichIP('10.0.0.1');
+        assert.equal(res.isPrivate, true);
+        assert.equal(res.country, 'Private Network');
+        assert.equal(res.source, 'fallback');
+        assert.equal(networkCalled, false, 'Expected no fetch calls for private bogon IP');
+      } finally {
+        globalThis.fetch = originalFetch;
       }
     });
   });
@@ -503,6 +552,27 @@ describe('IP Utilities Test Suite', () => {
       // Record success resets the circuit
       recordProviderSuccess('ipwhois');
       assert.equal(isCircuitOpen('ipwhois'), false);
+    });
+
+    it('allows trial when cooldown has elapsed (half-open)', () => {
+      resetCircuitBreakers();
+      const realNow = Date.now;
+      try {
+        let mockedTime = 1000000;
+        Date.now = () => mockedTime;
+
+        for (let i = 0; i < 5; i++) {
+          recordProviderFailure('ipwhois');
+        }
+        assert.equal(isCircuitOpen('ipwhois'), true);
+
+        // Advance time past 30s cooldown
+        mockedTime += 31000;
+        assert.equal(isCircuitOpen('ipwhois'), false, 'Expected half-open trial to be allowed after cooldown');
+      } finally {
+        Date.now = realNow;
+        resetCircuitBreakers();
+      }
     });
 
     it('resetCircuitBreakers clears all provider circuit states', () => {
